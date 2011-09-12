@@ -1,5 +1,1 @@
-<<<<<<< HEAD
 test... My name is A.
-=======
-test... My name is B.
->>>>>>> origin/master
