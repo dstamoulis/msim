@@ -89,7 +89,7 @@ int32_t simpleProcessor::signExtend( uint8_t byte )
 
 bool simpleProcessor::executeCmd( uint32_t cmd )
 {
-	if( OP( cmd ) == RTYPE ) {
+	if( OP( cmd ) == RTYPE1 ) {
 	
 		//R-TYPE instructions
 		int32_t rd =  RD(cmd);
@@ -308,9 +308,6 @@ bool simpleProcessor::executeCmd( uint32_t cmd )
 				reg->setReg( rt, mem->loadWord( rs + immed ) );
 				break;
 			
-			case( LWC1 ):
-				break; //TODO
-
 			case( ORI ):
 				reg->setReg( rt, rs | immed );
 				break; 
@@ -340,9 +337,6 @@ bool simpleProcessor::executeCmd( uint32_t cmd )
 			case( SW ):
 				mem->storeWord( rs+immed, reg->getReg( rt ) );
 				break;
-
-			case( SWC1 ):
-				break; //TODO
 
 			case( XORI ):
 				reg->setReg( rt, rs^immed );

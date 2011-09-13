@@ -9,8 +9,8 @@
 //all opcodes
 typedef enum {
 	//all R-TYPE instructions have opcode 0000 00
-	RTYPE = 0x00,
-	RTYPE = 0X1C,
+	RTYPE1 = 0x00,
+	RTYPE2 = 0X1C,
 
 	//I-TYPE
 	BGEZ = 0x01,
@@ -31,14 +31,18 @@ typedef enum {
 	LUI = 0x0F,
 	LB = 0x20,
 	LH = 0x21,
+	LWL = 0x22,
 	LW = 0x23,
 	LBU = 0x24,
 	LHU = 0x25,
+	LWR = 0x26,
 	SB = 0x28,
 	SH = 0x29,
+	SWL = 0x2A,
 	SW = 0x2B,
-	LWC1 = 0x31,
-	SWC1 = 0x39,
+	SWR = 0x2E,
+	LL = 0x30,
+	SC = 0x38,
 
 	//J-TYPE
 	J = 0x02,
@@ -88,7 +92,9 @@ typedef enum {
 	MSUB = 0x04,
 	MSUBU = 0x05,
 	CLZ = 0x20,
-	CLO = 0x21
+	CLO = 0x21,
+	MOVZ = 0x0a,
+	MOVN = 0x0b
 } function;
 
 
