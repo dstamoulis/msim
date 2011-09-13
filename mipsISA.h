@@ -10,6 +10,7 @@
 typedef enum {
 	//all R-TYPE instructions have opcode 0000 00
 	RTYPE = 0x00,
+	RTYPE = 0X1C,
 
 	//I-TYPE
 	BGEZ = 0x01,
@@ -51,11 +52,13 @@ typedef enum {
  * R-TYPE instructions
  */
 typedef enum {
+	//those with opcode 0x00
 	SLL = 0x00,
 	SRL = 0x02,
 	SRA = 0x03,
 	SLLV = 0x04,
 	SRLV = 0x06,
+	SRAL = 0x07,
 	JR = 0x08,
 	JALR = 0x09,
 	BREAK = 0x0D,
@@ -63,7 +66,6 @@ typedef enum {
 	MTHI = 0x11,
 	MFLO = 0x12,
 	MTLO = 0x13,
-	OR	= 0x15,
 	MULT = 0x18,
 	MULTU = 0x19,
 	DIV = 0x1A,
@@ -73,10 +75,20 @@ typedef enum {
 	SUB = 0x22,
 	SUBU = 0x23,
 	AND = 0x24,
+	OR	= 0x25,
 	XOR = 0x26,
 	NOR = 0x27,
 	SLT = 0x2A,
-	SLTU = 0x2B
+	SLTU = 0x2B,
+
+	//those with opcode 0x1c
+	MADD = 0x00,
+	MADDU = 0x01,
+	MUL = 0x02,
+	MSUB = 0x04,
+	MSUBU = 0x05,
+	CLZ = 0x20,
+	CLO = 0x21
 } function;
 
 
