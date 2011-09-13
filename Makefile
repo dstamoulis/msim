@@ -1,4 +1,4 @@
-#projects makefile
+#project's makefile
 
 all: register_file.o memory.o processor.o
 
