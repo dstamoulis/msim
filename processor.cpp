@@ -61,7 +61,7 @@ void simpleProcessor::run()
 		//if pc is in range load next instruction and execute it
 		uint32_t cmd = mem->loadWord( pc );
 		if( !executeCmd( cmd ) ) {
-			ex << "Unknown RTYPE operation at pc " << pc << ". Funct " << FUNCT( cmd ); 
+			ex << "Unknown operation at pc " << pc << ". Funct " << FUNCT( cmd ); 
 			throw ex.str();
 		}
 		//update pc
