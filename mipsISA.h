@@ -9,8 +9,8 @@
 //all opcodes
 typedef enum {
 	//all R-TYPE instructions have opcode 0000 00
-	RTYPE = 0x00,
-	RTYPE = 0X1C,
+	RTYPE1 = 0x00,
+	RTYPE2 = 0X1C,
 
 	//I-TYPE
 	BGEZ = 0x01,
