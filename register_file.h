@@ -6,8 +6,8 @@
  */
 
 
-#ifndef _REGISTER_FILE_H
-#define _REGISTER_FILE_H
+#ifndef __REGISTER_FILE_H__
+#define __REGISTER_FILE_H__
 
 #include <stdint.h>
 #include <cstring>
@@ -56,4 +56,4 @@ private:
 	int32_t BRK;	//determines the upper limit of the current data segment.
 };
 
-#endif
+#endif /* __REGISTER_FILE__ */

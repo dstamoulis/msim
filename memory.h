@@ -5,8 +5,8 @@
  * or Little-Endian
  */
 
-#ifndef _MEMORY_H_
-#define _MEMORY_H_
+#ifndef __MEMORY_H__
+#define __MEMORY_H__
 
 #include <stdint.h>
 #include <cstring>
@@ -65,4 +65,4 @@ private:
 };
 
 
-#endif
+#endif /* __MEMORY_H__ */

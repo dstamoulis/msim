@@ -2,13 +2,12 @@
  * mipsISA.h
  * definition of all MIPS's instruction opcodes
  */
-
-#ifndef _MIPSISA_H
-#define _MIPSISA_H
+#ifndef __MIPSISA_H__
+#define __MIPSISA_H__
 
 //all opcodes
 typedef enum {
-	//all R-TYPE instructions have opcode 0000 00
+	//all R-TYPE instructions have opcode 0000 00 or 01 1100
 	RTYPE1 = 0x00,
 	RTYPE2 = 0x1C,
 
@@ -62,7 +61,7 @@ typedef enum {
 	SRA = 0x03,
 	SLLV = 0x04,
 	SRLV = 0x06,
-	SRAL = 0x07,
+	SRAV = 0x07,
 	JR = 0x08,
 	JALR = 0x09,
 	BREAK = 0x0D,
@@ -74,7 +73,7 @@ typedef enum {
 	MULTU = 0x19,
 	DIV = 0x1A,
 	DIVU = 0x1B,
-	ADD = 0X20,
+	ADD = 0x20,
 	ADDU = 0x21,
 	SUB = 0x22,
 	SUBU = 0x23,
@@ -98,4 +97,4 @@ typedef enum {
 } function;
 
 
-#endif
+#endif /* __MIPS_ISA_H__ */

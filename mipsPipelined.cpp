@@ -50,7 +50,7 @@ void mipsPipelined::step()
 	}
 
 	valid[EX] = !dependence;  //if dependance exists EX stage is always invalid
-			                    //that is, instruction located at ID stage does not progress
+			                    //that is, opuction located at ID stage does not progress
 }
 
 
@@ -69,7 +69,7 @@ void mipsPipelined::fetch(){
 }
 
 
-void mipsPipelined::decode(){
+void mipsPipelined::decode() {
 
 	uint32_t temp = innerRegs->IFID_getPC();
 	
@@ -77,15 +77,235 @@ void mipsPipelined::decode(){
 	innerRegs->IDEX_setRT( reg->getReg(RT(temp)) );
 	innerRegs->IDEX_setRS( reg->getReg(RS(temp)) );
 	innerRegs->IDEX_setNextPC( innerRegs->IFID_getNextPC() );
-	innerRegs->IDEX_setImmed( signExtend( (uint16_t) IMMED(temp)) );
+	innerRegs->IDEX_setImmed( signExtend( IMMED(temp)) );
 	innerRegs->IDEX_setDestRegs( RT(temp), RD(temp) );
 	//TODO: Add functionallity for J-type cases.
 
 }
 
-void mipsPipelined::execute(){
+void mipsPipelined::execute() {
+	uint32_t op = OP( cmd[EX] );
+	if( op == RTYPE1 ) {
 
+		//RTYPE1 opuctions
+		switch( FUNCT( cmd[EX] ) ) {
+			case( SLL ): executeSLL(); break;
+			case( SRL ): executeSRL(); break;
+			case( SRA ): executeSRA(); break;
+			case( SLLV ): executeSLLV(); break;
+			case( SRLV ): executeSRLV(); break;
+			case( SRAV ): executeSRAV(); break;
+			case( JR ): executeJR(); break;
+			case( JALR ): executeJAR(); break;
+			case( BREAK ): executeBREAK(); break;
+			case( MFHI ): executeMFHI(); break;
+			case( MTHI ): executeMTHI(); break;
+			case( MFLO ): executeMFLO(); break;
+			case( MTLO ): executeMTLO(); break;
+			case( MULT ): executeMULT(); break;
+			case( MULTU ): executeMULTU(); break;
+			case( DIV ): executeDIV(); break;
+			case( DIVU ): executeDIVU(); break;
+			case( ADD ): executeADD(); break;
+			case( ADDU ): executeADDU(); break;
+			case( SUB ): executeSUB(); break;
+			case( SUBU ): executeSUBU(); break;
+			case( AND ): executeAND(); break;
+			case( OR ): executeOR(); break;
+			case( XOR ): executeXOR(); break;
+			case( NOR ): executeNOR(); break;
+			case( SLT ): executeSLT(); break;
+			case( SLTU ): executeSLTU(); break;
+			default:
+				throw "Unhandled opuction";
+		} 
+
+	} else if ( op == RTYPE2 ) {
+	
+		//RTYPE2 opuctions
+		switch( FUNCT( cmd[EX] ) ) {
+			case( MADD ): executeMADD(); break;
+			case( MADDU ): executeMADDU(); break;
+			case( MUL ): executeMUL(); break;
+			case( MSUB ): executeMSUB(); break;
+			case( MSUBU ): executeMSUBU(); break;
+			case( CLZ ): executeCLZ(); break;
+			case( CLO ): executeCLO(); break;
+			case( MOVZ ): executeMOVZ(); break;
+			case( MOVN ): executeMOVN(); break;
+			default:
+				throw "Unhandled opuction";
+		}
+
+	} else if ( op == J ) { //the two JTYPE opuctions are following
+		
+	} else if ( op == JAL ) {
+
+
+	} else { //ITYPE here
+		
+		switch( op ) {
+			case( BGEZ ):
+				//TODO: handle case of BGEZ, BGEZAL, BLTZAL, BLTZ
+				break;
+			case( BEQ ): executeBEQ(); break;
+			case( BNE ): executeBNE(); break;
+			case( BLEZ ): executeBLEZ(); break;
+			case( BGTZ ): executeBGEZ(); break;
+			case( ADDI ): executeADDI(); break;
+			case( ADDIU ): executeADDIU(); break;
+			case( SLTI ): executeSLTI(); break;
+			case( SLTIU ): executeSLTIU(); break;
+			case( ANDI ): executeANDI(); break;
+			case( ORI ): executeORI(); break;
+			case( XORI ): executeXORI(); break;
+			case( LUI ): executeLUI(); break;
+			case( LB ): executeLB(); break;
+			case( LH ): executeLH(); break;
+			case( LWL ): executeLWL(); break;
+			case( LW ): executeLW(); break;
+			case( LBU ): executeLBU(); break;
+			case( LHU ): executeLHU(); break;
+			case( LWR ): executeLWR(); break;
+			case( SB ): executeSB(); break;
+			case( SH ): executeSH(); break;
+			case( SWL ): executeSWL(); break;
+			case( SW ): executeSW(); break;
+			case( SWR ): executeSWR(); break;
+			case( LL ): executeLL(); break;
+			case( SC ): executeSC(); break;
+		} 	
+	}
 }
-void mipsPipelined::memory(){}
-void mipsPipelined::writeback(){}
+
+
+void mipsPipelined::memory()
+{
+	uint32_t op = OP( cmd[MEM] );
+	if( op == RTYPE1 ) {
+		switch( FUNCT( cmd[MEM] ) ) {		//only these two RTYPE instruction have work to do during mem stage
+			case( JR ): memoryJR(); break;
+			case( JALR ): memoryJALR(); break;
+			default:
+				break;
+		}
+			
+	} else if( op == RTYPE2 ) 
+		return;
+
+	else if ( op == J ) { //the two JTYPE opuctions are following
+		
+	} else if ( op == JAL ) {
+
+
+	} else { //ITYPE here
+	
+		switch( op ) {
+			case( BGEZ ):
+				//TODO: handle case of BGEZ, BGEZAL, BLTZAL, BLTZ
+				break;
+			case( BEQ ): memoryBEQ(); break;
+			case( BNE ): memoryBNE(); break;
+			case( BLEZ ): memoryBLEZ(); break;
+			case( BGTZ ): memoryBGEZ(); break;
+			case( LB ): memoryLB(); break;
+			case( LH ): memoryLH(); break;
+			case( LWL ): memoryLWL(); break;
+			case( LW ): memoryLW(); break;
+			case( LBU ): memoryLBU(); break;
+			case( LHU ): memoryLHU(); break;
+			case( LWR ): memoryLWR(); break;
+			case( SB ): memorySB(); break;
+			case( SH ): memorySH(); break;
+			case( SWL ): memorySWL(); break;
+			case( SW ): memorySW(); break;
+			case( SWR ): memorySWR(); break;
+			case( LL ): memoryLL(); break;
+			case( SC ): memorySC(); break;
+		} 	
+	}
+}
+void mipsPipelined::writeback() 
+{
+	uint32_t op = OP( cmd[WB] );
+	if( op == RTYPE1 ) {
+
+		//RTYPE1 opuctions
+		switch( FUNCT( cmd[WB] ) ) {
+			case( SLL ): writebackSLL(); break;
+			case( SRL ): writebackSRL(); break;
+			case( SRA ): writebackSRA(); break;
+			case( SLLV ): writebackSLLV(); break;
+			case( SRLV ): writebackSRLV(); break;
+			case( SRAV ): writebackSRAV(); break;
+			//case( JR ): executeJR(); break;
+			//case( JALR ): executeJAR(); break;
+			//case( BREAK ): executeBREAK(); break;
+			case( MFHI ): writebackMFHI(); break;
+			case( MTHI ): writebackMTHI(); break;
+			case( MFLO ): writebackMFLO(); break;
+			case( MTLO ): writebackMTLO(); break;
+			case( MULT ): writebackMULT(); break;
+			case( MULTU ): writebackMULTU(); break;
+			case( DIV ): writebackDIV(); break;
+			case( DIVU ): writebackDIVU(); break;
+			case( ADD ): writebackADD(); break;
+			case( ADDU ): writebackADDU(); break;
+			case( SUB ): writebackSUB(); break;
+			case( SUBU ): writebackSUBU(); break;
+			case( AND ): writebackAND(); break;
+			case( OR ): writebackOR(); break;
+			case( XOR ): writebackXOR(); break;
+			case( NOR ): writebackNOR(); break;
+			case( SLT ): writebackSLT(); break;
+			case( SLTU ): writebackSLTU(); break;
+			default:
+				throw "Unhandled opuction";
+		} 
+
+	} else if ( op == RTYPE2 ) {
+	
+		//RTYPE2 opuctions
+		switch( FUNCT( cmd[WB] ) ) {
+			case( MADD ): writebackMADD(); break;
+			case( MADDU ): writebackMADDU(); break;
+			case( MUL ): writebackMUL(); break;
+			case( MSUB ): writebackMSUB(); break;
+			case( MSUBU ): writebackMSUBU(); break;
+			case( CLZ ): writebackCLZ(); break;
+			case( CLO ): writebackCLO(); break;
+			case( MOVZ ): writebackMOVZ(); break;
+			case( MOVN ): writebackMOVN(); break;
+			default:
+				throw "Unhandled opuction";
+		}
+
+	} else if ( op == J ) { //the two JTYPE opuctions are following
+		
+	} else if ( op == JAL ) {
+
+
+	} else { //ITYPE here
+		
+		switch( op ) {
+			case( ADDI ): writebackADDI(); break;
+			case( ADDIU ): writebackADDIU(); break;
+			case( SLTI ): writebackSLTI(); break;
+			case( SLTIU ): writebackSLTIU(); break;
+			case( ANDI ): writebackANDI(); break;
+			case( ORI ): writebackORI(); break;
+			case( XORI ): writebackXORI(); break;
+			case( LUI ): writebackLUI(); break;
+			case( LB ): writebackLB(); break;
+			case( LH ): writebackLH(); break;
+			case( LWL ): writebackLWL(); break;
+			case( LW ): writebackLW(); break;
+			case( LBU ): writebackLBU(); break;
+			case( LHU ): writebackLHU(); break;
+			case( LWR ): writebackLWR(); break;
+			case( LL ): writebackLL(); break;		//???
+			case( SC ): writebackSC(); break;
+		} 	
+	}
+}
 

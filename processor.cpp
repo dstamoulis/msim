@@ -70,7 +70,7 @@ void simpleProcessor::run()
 
 }
 
-int32_t simpleProcessor::signExtend( uint16_t halfword )
+int32_t simpleProcessor::signExtend( int16_t halfword )
 {
 	if( halfword & 0x8000 )
 		return 0xffff0000 | halfword;
@@ -78,7 +78,7 @@ int32_t simpleProcessor::signExtend( uint16_t halfword )
 		return 0x0000ffff & halfword;
 }
 
-int32_t simpleProcessor::signExtend( uint8_t byte )
+int32_t simpleProcessor::signExtend( int8_t byte )
 {
 	if( byte & 0x80 )
 		return 0xffffff00 | byte;
@@ -285,19 +285,19 @@ bool simpleProcessor::executeCmd( uint32_t cmd )
 				break;
 
 			case( LB ):
-				reg->setReg( rt, signExtend( (uint8_t) mem->loadByte( rs + signExtend( (uint16_t) immed ) ) ) ); //Sign Extension
+				reg->setReg( rt, signExtend( (int8_t) mem->loadByte( rs + signExtend( (int16_t) immed ) ) ) ); //Sign Extension
 				break;
 	
 			case( LBU ):
-				reg->setReg( rt, mem->loadByte( rs + signExtend( (uint16_t) immed ) ) ); //TODO: Byte returned from mem must be sign extended.
+				reg->setReg( rt, mem->loadByte( rs + signExtend( (int16_t) immed ) ) ); //TODO: Byte returned from mem must be sign extended.
 				break; 
 
 			case( LH ):
-				reg->setReg( rt, signExtend( (uint16_t) mem->loadHalfWord( rs + signExtend( (uint16_t) immed ) ) ) );
+				reg->setReg( rt, signExtend( (int16_t) mem->loadHalfWord( rs + signExtend( (int16_t) immed ) ) ) );
 				break;
 
 			case( LHU ):
-				reg->setReg( rt, mem->loadHalfWord( rs + signExtend( (uint16_t) immed ) ) );
+				reg->setReg( rt, mem->loadHalfWord( rs + signExtend( (int16_t) immed ) ) );
 				break; 
 
 			case( LUI ):

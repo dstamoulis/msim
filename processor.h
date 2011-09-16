@@ -10,8 +10,8 @@
 #include "register_file.h"
 #include "mipsISA.h"
 
-#ifndef _PROCESSOR_H
-#define _PROCESSOR_H
+#ifndef __PROCESSOR_H__
+#define __PROCESSOR_H__
 
 #define MEM_SIZE	0x7ffffffd
 #define DATA_LOW	0x10000000
@@ -70,8 +70,8 @@ public:
 
 	simpleProcessor() 
 	{
-		 this->mem = NULL;
-		 this->reg = NULL;
+		 this->mem = new simpleMemory( 1UL << 22 );
+		 this->reg = new Register_File();
 		 this->startAddr = 0;
 		 this->endAddr = 0;
 	}
@@ -121,13 +121,13 @@ protected:
 	uint32_t RD( uint32_t instruction ) const { return (instruction >> 11) & 0x1f; }
 	uint32_t SHAMT( uint32_t instruction ) const { return (instruction >> 6) & 0x1f; }
 	uint32_t FUNCT( uint32_t instruction ) const { return instruction & 0x3f; }
-	uint32_t IMMED( uint32_t instruction ) const { return instruction & 0xffff; }
+	int16_t IMMED( uint32_t instruction ) const { return (int16_t)(instruction & 0xffff); }
 	uint32_t TARG( uint32_t instruction ) const { return instruction & 0x3ffffff; }
 
 
 	//functions extending sign for halfwords and bytes	
-	int32_t signExtend( uint16_t );
-	int32_t signExtend( uint8_t );
+	int32_t signExtend( int16_t );
+	int32_t signExtend( int8_t );
 
 	//exception codes
 	typedef enum {
@@ -170,4 +170,4 @@ private:
 	
 };
 
-#endif
+#endif /* __PROCESSOR_H__ */
