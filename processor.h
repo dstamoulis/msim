@@ -99,6 +99,21 @@ protected:
  	 * from here.
 	 */
 
+	//Memory
+	Memory *mem;
+
+	//Registers
+	Register_File *reg;
+	
+	//Program Counter
+	uint32_t pc;	
+
+	//Addresses defining text area
+	uint32_t startAddr;
+	uint32_t endAddr;
+
+
+
 	//decode an instruction
 	uint32_t OP( uint32_t instruction ) const { return instruction >> 26; }
 	uint32_t RS( uint32_t instruction ) const { return (instruction >> 21) & 0x1f; }
