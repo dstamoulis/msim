@@ -31,14 +31,14 @@ public:
 
 	processor() {};
 	processor( uint32_t startAddr, uint32_t endAddr ) : startAddr( startAddr ), endAddr( endAddr ) {};
-	processor( Memory *mem, Register_File *reg, uint32_t startAddr, uint32_t endAddr ) :  mem( mem ), reg( reg ),  pc( startAddr ), startAddr( startAddr ), endAddr( endAddr ) {};
+	processor( simpleMemory *mem, Register_File *reg, uint32_t startAddr, uint32_t endAddr ) :  mem( mem ), reg( reg ),  pc( startAddr ), startAddr( startAddr ), endAddr( endAddr ) {};
 
 
 
 protected:
 	
 	//Memory
-	Memory *mem;
+	simpleMemory *mem;
 
 	//Registers
 	Register_File *reg;
@@ -82,7 +82,7 @@ public:
 		this->endAddr = endAddr;
 	}
 
-	simpleProcessor( Memory *mem, Register_File *reg, uint32_t startAddr, uint32_t endAddr ) 
+	simpleProcessor( simpleMemory *mem, Register_File *reg, uint32_t startAddr, uint32_t endAddr ) 
 	{
 		 this->mem = mem;
 		 this->reg = reg;
@@ -100,7 +100,7 @@ protected:
 	 */
 
 	//Memory
-	Memory *mem;
+	simpleMemory *mem;
 
 	//Registers
 	Register_File *reg;

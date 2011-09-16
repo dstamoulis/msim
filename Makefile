@@ -1,6 +1,6 @@
 #project's makefile
 
-all: register_file.o memory.o processor.o
+all: register_file.o memory.o processor.o mipsPipelined.o
 
 CC=g++
 FLAGS=-Wall -O3 -g
@@ -15,8 +15,12 @@ memory.o: memory.cpp
 processor.o: processor.cpp
 	$(CC) $(FLAGS) $^ -c
 
+mipsPipelined.o: mipsPipelined.cpp
+	$(CC) $(CFLAGS) $^ -c
+
 msim: memory.o register_file.o
 	$(CC) $(FLAGS) $^ -o $@
+
 
 clean:
 	rm *.o
