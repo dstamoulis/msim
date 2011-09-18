@@ -56,9 +56,10 @@ void mipsPipelined::step()
 
 void mipsPipelined::fetch(){
 
-
-	if ( pc > endAddr ) // TODO : Add J-type case later...
+	if ( pc > endAddr ) { // TODO : Add J-type case later...
 		valid[IF] = false;
+		return;
+	}
 
 	//set IF_ID intermediate register fields
 	innerRegs->IFID_setPC( mem->loadWord( pc ) );
@@ -70,6 +71,8 @@ void mipsPipelined::fetch(){
 
 
 void mipsPipelined::decode() {
+	//TODO implement check for hazards.
+
 
 	uint32_t temp = innerRegs->IFID_getPC();
 	
@@ -77,11 +80,18 @@ void mipsPipelined::decode() {
 	innerRegs->IDEX_setRT( reg->getReg(RT(temp)) );
 	innerRegs->IDEX_setRS( reg->getReg(RS(temp)) );
 	innerRegs->IDEX_setNextPC( innerRegs->IFID_getNextPC() );
-	innerRegs->IDEX_setImmed( signExtend( IMMED(temp)) );
+	innerRegs->IDEX_setImmed( IMMED(temp) );
 	innerRegs->IDEX_setDestRegs( RT(temp), RD(temp) );
+	innerRegs->IDEX_setShamt( SHAMT( temp ) );
 	//TODO: Add functionallity for J-type cases.
 
 }
+
+/********************************************
+ *-------------EXECUTION  STAGE-------------*
+ * functionality of instruction in EX stage *
+ ********************************************/
+
 
 void mipsPipelined::execute() {
 	uint32_t op = OP( cmd[EX] );
@@ -117,7 +127,7 @@ void mipsPipelined::execute() {
 			case( SLT ): executeSLT(); break;
 			case( SLTU ): executeSLTU(); break;
 			default:
-				throw "Unhandled opuction";
+				throw "Unhandled operation";
 		} 
 
 	} else if ( op == RTYPE2 ) {
@@ -134,7 +144,7 @@ void mipsPipelined::execute() {
 			case( MOVZ ): executeMOVZ(); break;
 			case( MOVN ): executeMOVN(); break;
 			default:
-				throw "Unhandled opuction";
+				throw "Unhandled operation";
 		}
 
 	} else if ( op == J ) { //the two JTYPE opuctions are following
@@ -174,9 +184,56 @@ void mipsPipelined::execute() {
 			case( SWR ): executeSWR(); break;
 			case( LL ): executeLL(); break;
 			case( SC ): executeSC(); break;
+			default:
+				throw "Unhandled operation";
 		} 	
 	}
 }
+
+//functionality of MIPS instruction
+//in execute stage.
+void mipsPipelined::executeSLL()
+{
+	uint32_t shamt = innerRegs->IDEX_getShamt();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt << shamt );
+}
+
+void mipsPipelined::executeSRL()
+{
+	uint32_t shamt = innerRegs->IDEX_getShamt();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt >> shamt );
+}
+
+void mipsPipelined::executeSRA()
+{
+	uint32_t shamt = innerRegs->IDEX_getShamt();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt >> shamt );
+}
+
+void mipsPipelined::executeSLLV()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt << rs );
+}
+
+void mipsPipelined::executeSRLV()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt >> rs );
+}
+
+void mipsPipelined::executeSRAV()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	int32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( rt >> rs );
+}
+
 
 
 void mipsPipelined::memory()

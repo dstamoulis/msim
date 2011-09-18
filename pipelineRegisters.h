@@ -24,7 +24,7 @@ public:
 		regs_size = new uint8_t [STAGES_NR-1];
 		regs[IF_ID] = new uint32_t[2];
 		regs_size[IF_ID] = 2;
-		regs[ID_EX] = new uint32_t[5]; //TODO: probably must be changed when we take care of jumps.
+		regs[ID_EX] = new uint32_t[6]; //TODO: probably must be changed when we take care of jumps.
 		regs_size[ID_EX] = 5;
 		regs[EX_MEM] = new uint32_t[4]; //TODO: check if we can merge some of the registers and allocate less memory.
 		regs_size[ID_EX] = 4;
@@ -36,7 +36,7 @@ public:
 	{
 		for( int i=IF_ID; i<STAGES_NR; ++i )
 			delete[] regs[i];
-
+	
 		delete[] regs;
 		delete[] regs_size;	
 	}
@@ -73,11 +73,11 @@ public:
 		regs[ID_EX][4] = ( rd  << 8 ) | rt;
 	}
 	uint32_t IDEX_getDestRegs() { return regs[ID_EX][4]; }
-	uint32_t IDEX_getDestRegs( uint8_t &rd, uint8_t& rt ) 
-	{ 
-		rd = (uint8_t) (regs[ID_EX][4] >> 8 );
-		rt = (uint8_t) (regs[ID_EX][4] && 0xff );
-	}
+	uint8_t IDEX_getDestRegRD() { return (uint8_t) (regs[ID_EX][4] >> 8 ); }
+	uint8_t IDEX_getDestRegRT() { return (uint8_t) (regs[ID_EX][4] && 0xff ); }
+
+	void IDEX_setShamt( uint32_t shamt ) { regs[ID_EX][5] = shamt; }
+	uint32_t IDEX_getShamt() { return regs[ID_EX][5]; }
 
 	//accessors for EX_MEM
 	void EXMEM_setBranchAddr( uint32_t addr ) { regs[EX_MEM][0] = addr; }
@@ -93,7 +93,7 @@ public:
 		rd = (uint8_t) (regs[EX_MEM][3] >> 8 );
 		rt = (uint8_t) (regs[EX_MEM][3] && 0xff );
 	}
-	//accessors for MEM_WB
+	//accessors for MEM_W
 	void MEMWB_setMem( uint32_t word ) { regs[MEM_WB][0] = word; }
 	uint32_t MEMWB_getMem() { return regs[MEM_WB][0]; }
 	void MEMWB_setAlu( uint32_t res ) { regs[MEM_WB][1] = res; }
