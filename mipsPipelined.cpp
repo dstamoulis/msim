@@ -106,7 +106,7 @@ void mipsPipelined::execute() {
 			case( SRLV ): executeSRLV(); break;
 			case( SRAV ): executeSRAV(); break;
 			case( JR ): executeJR(); break;
-			case( JALR ): executeJAR(); break;
+			case( JALR ): executeJALR(); break;
 			case( BREAK ): executeBREAK(); break;
 			case( MFHI ): executeMFHI(); break;
 			case( MTHI ): executeMTHI(); break;
@@ -233,6 +233,56 @@ void mipsPipelined::executeSRAV()
 	int32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt >> rs );
 }
+
+void mipsPipelined::executeJR()
+{
+	//TODO
+}
+
+void mipsPipelined::executeJALR()
+{
+	//TODO
+}
+
+void mipsPipelined::executeBREAK()
+{
+	//TODO
+}
+
+void mipsPipelined::executeMFHI()
+{
+	uint32_t hi = reg->getHI();
+	innerRegs->EXMEM_setAluRes( hi );
+}
+
+void mipsPipelined::executeMTHI()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( rs );
+}
+
+void mipsPipelined::executeMFLO()
+{
+	uint32_t lo = reg->getLO();
+	innerRegs->EXMEM_setAluRes( lo );
+}
+
+void mipsPipelined::executeMTLO()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( rs );
+}
+
+void mipsPipelined::executeMULT()
+{
+	//TODO
+}
+
+void mipsPipelined::executeMULTU()
+{
+	//TODO
+}
+
 
 
 

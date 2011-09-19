@@ -75,7 +75,7 @@ private:
 	void executeSRLV();
 	void executeSRAV();
 	void executeJR();
-	void executeJAR();
+	void executeJALR();
 	void executeBREAK();
 	void executeMFHI();
 	void executeMTHI();
