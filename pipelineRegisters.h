@@ -93,7 +93,7 @@ public:
 		rd = (uint8_t) (regs[EX_MEM][3] >> 8 );
 		rt = (uint8_t) (regs[EX_MEM][3] && 0xff );
 	}
-	//accessors for MEM_W
+	//accessors for MEM_WB
 	void MEMWB_setMem( uint32_t word ) { regs[MEM_WB][0] = word; }
 	uint32_t MEMWB_getMem() { return regs[MEM_WB][0]; }
 	void MEMWB_setAlu( uint32_t res ) { regs[MEM_WB][1] = res; }

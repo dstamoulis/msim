@@ -284,6 +284,10 @@ void mipsPipelined::executeMULTU()
 }
 
 
+/*********************************************
+ *---------------MEMORY  STAGE---------------*
+ * functionality of instruction in MEM stage *
+ ********************************************/
 
 
 void mipsPipelined::memory()
@@ -332,6 +336,135 @@ void mipsPipelined::memory()
 		} 	
 	}
 }
+
+//functionality of MIPS instruction
+//in execute stage.
+void mipsPipelined::memoryBEQ()
+{
+
+}
+
+void mipsPipelined::memoryBNE()
+{
+
+}
+
+void mipsPipelined::memoryBLEZ()
+{
+
+}
+
+void mipsPipelined::memoryBGEZ()
+{
+
+}
+
+void mipsPipelined::memoryLB()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint8_t val = mem->loadByte( addr );
+	innerRegs->MEMWB_setMem( signExtend( (int8_t)val ) );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryLH()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint16_t val = mem->loadHalfWord( addr );
+	innerRegs->MEMWB_setMem( signExtend( (int16_t)val ) );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryLWL() 
+{
+	//TODO
+}
+void mipsPipelined::memoryLW()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t val = mem->loadWord( addr );
+	innerRegs->MEMWB_setMem( val );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryLBU()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint8_t val = mem->loadByte( addr );
+	innerRegs->MEMWB_setMem( (uint32_t)val );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryLHU()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint16_t val = mem->loadHalfWord( addr );
+	innerRegs->MEMWB_setMem( (uint32_t) val  );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+
+}
+void mipsPipelined::memoryLWR()
+{
+
+}
+
+void mipsPipelined::memorySB()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	mem->storeByte( addr,  (uint8_t) data );
+}
+
+void mipsPipelined::memorySH()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	mem->storeHalfWord( addr, (uint16_t) data);
+}
+
+void mipsPipelined::memorySWL()
+{
+	//TODO
+}
+void mipsPipelined::memorySW()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	mem->storeWord( addr,data );
+}
+void mipsPipelined::memorySWR()
+{
+	//TODO
+}
+
+void mipsPipelined::memoryLL() 
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t val = mem->loadWord( addr );
+	innerRegs->MEMWB_setMem( val );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+	ll = 1;
+}
+
+void mipsPipelined::memorySC()
+{
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	if( ll == 1 ) 
+		mem->storeWord( addr,data );
+
+	innerRegs->MEMWB_setAlu( ll );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+
+/*********************************************
+ *-----------------WRITE BACK----------------*
+ * functionality of instruction in WB stage  *
+ ********************************************/
+
+
 void mipsPipelined::writeback() 
 {
 	uint32_t op = OP( cmd[WB] );

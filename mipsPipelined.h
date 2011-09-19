@@ -57,6 +57,7 @@ private:
 	uint32_t *cmd;
 	bool *valid;
 	int dependence;
+	int ll;		//used for ll and sc instructions
 
 	void fetch();
 	void decode();

@@ -50,8 +50,8 @@ protected:
 	uint32_t startAddr;
 	uint32_t endAddr;
 	
-	int32_t signExtend( uint16_t );
-	int32_t signExtend( uint8_t );
+	int32_t signExtend( int16_t );
+	int32_t signExtend( int8_t );
 
 };
 
@@ -128,7 +128,7 @@ protected:
 	//functions extending sign for halfwords and bytes	
 	int32_t signExtend( int16_t );
 	int32_t signExtend( int8_t );
-
+	
 	//exception codes
 	typedef enum {
 		Int = 0,
