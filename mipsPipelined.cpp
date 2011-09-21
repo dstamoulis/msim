@@ -20,6 +20,12 @@ using namespace std;
 #define WB  4
 
 #define EMPTY_PIPELINE(valid) !( valid[IF] || valid[ID] || valid[EX] || valid[MEM] || valid[WB] )
+#define DEP_RS_RT RT( cmd[ID] ) == RT( cmd[EX] ) || RT( cmd[ID] ) == RT( cmd[MEM] ) || RT( cmd[ID] ) == RT( cmd[WB] )
+#define DEP_RT_RT RS( cmd[ID] ) == RT( cmd[EX] ) || RS( cmd[ID] ) == RT( cmd[MEM] ) || RS( cmd[ID] ) == RT( cmd[WB] )
+#define DEP_RS_RD ( OP( cmd[EX] ) == RTYPE1 || OP( cmd[EX] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[EX] ) ) \
+					|| ( OP( cmd[MEM] ) == RTYPE1 || OP( cmd[MEM] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[MEM] ) ) \
+					|| ( OP( cmd[WB] ) == RTYPE1 || OP( cmd[WB] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[WB] ) )
+#define DEP_RT_RD RS( cmd[ID] ) == RD( cmd[EX] ) || RS( cmd[ID] ) == RD( cmd[MEM] ) || RS( cmd[ID] ) == RD( cmd[WB] )
 
 void mipsPipelined::step()
 {
@@ -57,17 +63,21 @@ void mipsPipelined::step()
 
 void mipsPipelined::fetch(){
 
+	if( dependence ) 
+		return;
+
 	if ( pc > endAddr ) { // TODO : Add J-type case later...
 		valid[IF] = false;
 		return;
 	}
+
+	valid[IF] = true;
 
 	//set IF_ID intermediate register fields
 	innerRegs->IFID_setPC( mem->loadWord( pc ) );
 	innerRegs->IFID_setNextPC( mem->loadWord( pc + 4 ) );
 
 	pc += 4;
-
 }
 
 
@@ -90,6 +100,30 @@ void mipsPipelined::decode() {
 	innerRegs->IDEX_setHI( reg->getHI() );
 	
 }
+
+bool checkDependence() 
+{
+	if( OP( cmd[ID] ) == RTYPE1 || OP( cmd[ID] ) == RTYPE2 ) {
+		
+		if( ) {
+
+		} else if () {
+
+
+		} else if () {
+
+
+		} else
+			if(  DEP_RS_RT || DEP_RT_RT || DEP_RS_RD || DEP_RT_RD ) {
+				dependence = 1;
+				return true;
+			}
+	}
+
+
+
+}
+
 
 /********************************************
  *-------------EXECUTION  STAGE-------------*
@@ -1259,7 +1293,13 @@ void mipsPipelined::memoryLH()
 
 void mipsPipelined::memoryLWL() 
 {
-	//TODO
+	uint32_t res = 0;
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint8_t bytes = 4 - addr%4;
+	for( int i=1; i<=bytes; ++i ) {
+		res = res | ( mem->loadByte( addr ) << ( (4-i)*8 ) ); 
+		addr++;
+	}
 }
 void mipsPipelined::memoryLW()
 {
@@ -1287,7 +1327,13 @@ void mipsPipelined::memoryLHU()
 }
 void mipsPipelined::memoryLWR()
 {
-	//TODO
+	uint32_t res = 0;
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint8_t bytes = 1 + addr%4;
+	for( i=0; i<bytes; ++i ) {
+		res = res | ( mem->loadByte( addr ) << (i*8) );
+		addr--;
+	}
 }
 
 void mipsPipelined::memorySB()
