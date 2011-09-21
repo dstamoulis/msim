@@ -9,6 +9,7 @@
 #include "mipsPipelined.h"
 #include "memory.h"
 #include "register_file.h"
+#include "safeops.h"
 
 using namespace std;
 
@@ -85,6 +86,9 @@ void mipsPipelined::decode() {
 	innerRegs->IDEX_setShamt( SHAMT( temp ) );
 	//TODO: Add functionallity for J-type cases.
 
+	innerRegs->IDEX_setLO( reg->getLO() );	
+	innerRegs->IDEX_setHI( reg->getHI() );
+	
 }
 
 /********************************************
@@ -147,9 +151,11 @@ void mipsPipelined::execute() {
 				throw "Unhandled operation";
 		}
 
-	} else if ( op == J ) { //the two JTYPE opuctions are following
+	} else if ( op == J ) { 
+		executeJ();
 		
 	} else if ( op == JAL ) {
+		executeJAL();
 
 
 	} else { //ITYPE here
@@ -197,6 +203,8 @@ void mipsPipelined::executeSLL()
 	uint32_t shamt = innerRegs->IDEX_getShamt();
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt << shamt );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	
 }
 
 void mipsPipelined::executeSRL()
@@ -204,6 +212,7 @@ void mipsPipelined::executeSRL()
 	uint32_t shamt = innerRegs->IDEX_getShamt();
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt >> shamt );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeSRA()
@@ -211,6 +220,7 @@ void mipsPipelined::executeSRA()
 	uint32_t shamt = innerRegs->IDEX_getShamt();
 	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt >> shamt );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeSLLV()
@@ -218,6 +228,7 @@ void mipsPipelined::executeSLLV()
 	uint32_t rs = innerRegs->IDEX_getRS();
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt << rs );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeSRLV()
@@ -225,6 +236,7 @@ void mipsPipelined::executeSRLV()
 	uint32_t rs = innerRegs->IDEX_getRS();
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt >> rs );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeSRAV()
@@ -232,6 +244,7 @@ void mipsPipelined::executeSRAV()
 	uint32_t rs = innerRegs->IDEX_getRS();
 	int32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt >> rs );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeJR()
@@ -253,6 +266,7 @@ void mipsPipelined::executeMFHI()
 {
 	uint32_t hi = reg->getHI();
 	innerRegs->EXMEM_setAluRes( hi );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeMTHI()
@@ -265,6 +279,7 @@ void mipsPipelined::executeMFLO()
 {
 	uint32_t lo = reg->getLO();
 	innerRegs->EXMEM_setAluRes( lo );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeMTLO()
@@ -275,42 +290,624 @@ void mipsPipelined::executeMTLO()
 
 void mipsPipelined::executeMULT()
 {
-	//TODO
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	int64_t result = rs * rt;
+
+	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+
 }
 
 void mipsPipelined::executeMULTU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	uint64_t result = rs * rt;
+
+	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+}
+
+void mipsPipelined::executeDIV()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	innerRegs->EXMEM_setAluRes(rs / rt);
+	innerRegs->EXMEM_setAluRes2(rs % rt);
+
+	//TODO -> Ask silverwind for overflow + safeops...
+}
+
+void mipsPipelined::executeDIVU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	innerRegs->EXMEM_setAluRes(rs / rt);
+	innerRegs->EXMEM_setAluRes2(rs % rt);
+
+}
+void mipsPipelined::executeADD()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setAluRes( add(rt,rs));
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+void mipsPipelined::executeADDU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( rt + rs );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeSUB()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	innerRegs->EXMEM_setAluRes( subtract(rs,rt));
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+void mipsPipelined::executeSUBU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( rs - rt );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeAND()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( rs & rt );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeOR()
+{
+
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( rs | rt );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeXOR()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( rs ^ rt );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;	
+}
+
+void mipsPipelined::executeNOR()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( ~(rs | rt) );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+
+void mipsPipelined::executeSLT()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes( (rs<rt) ? 1U : 0 );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeSLTU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+	
+	innerRegs->EXMEM_setAluRes((rs<rt) ? 1U : 0  );
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+
+void mipsPipelined::executeMADD()
+{
+	//TODO -> Tsekare an einai swsta ta orismata signed - unsigned (dimitris)
+
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	int64_t result = (int32_t) rs * rt;
+
+	int64_t lo = (int64_t) innerRegs->IDEX_getLO();
+
+	int64_t hi =  ( (int64_t) innerRegs->IDEX_getHI() ) << 32  ;
+
+	int64_t hi_lo = ( hi | lo );
+
+	result += hi_lo;
+	
+
+	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+
+
+}
+
+void mipsPipelined::executeMADDU()
+{
+	
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	uint64_t result = rs * rt;
+
+	uint64_t lo = (uint64_t) innerRegs->IDEX_getLO();
+
+	uint64_t hi =  ( (uint64_t) innerRegs->IDEX_getHI() ) << 32  ;
+
+	uint64_t hi_lo = ( hi | lo );
+
+	result += hi_lo;
+	
+
+	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+}
+
+void mipsPipelined::executeMUL()
+{
+
+
+
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+
+	int64_t result = rs * rt;
+
+	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for register rd
+
+
+
+}
+
+void mipsPipelined::executeMSUB()
+{
+	//TODO -> Tsekare an einai swsta ta orismata signed - unsigned (dimitris)
+
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
+
+	int64_t result = (int32_t) rs * rt;
+
+	int64_t lo = (int64_t) innerRegs->IDEX_getLO();
+
+	int64_t hi =  ( (int64_t) innerRegs->IDEX_getHI() ) << 32  ;
+
+	int64_t hi_lo = ( hi | lo );
+
+	hi_lo -= result;
+	
+
+	innerRegs->EXMEM_setAluRes(hi_lo && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((hi_lo >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+}
+
+
+void mipsPipelined::executeMSUBU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	uint64_t result = rs * rt;
+
+	uint64_t lo = (uint64_t) innerRegs->IDEX_getLO();
+
+	uint64_t hi =  ( (uint64_t) innerRegs->IDEX_getHI() ) << 32  ;
+
+	uint64_t hi_lo = ( hi | lo );
+
+	hi_lo -= result;
+	
+
+	innerRegs->EXMEM_setAluRes(hi_lo && 0xffffffff);  // Stores into that register the result for LO
+	innerRegs->EXMEM_setAluRes2((hi_lo >> 32 ) && 0xffffffff); // Stores into that register the result for HI
+}
+
+void mipsPipelined::executeCLZ()
+{
+
+	uint32_t rs = innerRegs->IDEX_getRS();
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	
+	uint32_t count = 0;
+
+	__asm__("again1:");
+
+	rs<<1;
+
+	__asm__("jc stop1");
+
+	count++;
+
+	__asm__("jmp again1");
+
+	__asm__("stop1:");
+
+	innerRegs->EXMEM_setAluRes( count ); // Stores into that register the result for register rd
+
+	
+}
+
+void mipsPipelined::executeCLO()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	
+	uint32_t count = 0;
+
+	__asm__("again2:");
+
+	rs<<1;
+
+	__asm__("jnc stop2");
+
+	count++;
+
+	__asm__("jmp again2");
+
+	__asm__("stop2:");
+
+	innerRegs->EXMEM_setAluRes( count );
+}
+
+
+void mipsPipelined::executeMOVZ()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	
+	innerRegs->EXMEM_setAluRes( (rt==0) ? 1U :0 ) ; // Stores the comparison's result, in order to have it at WB stage
+							
+	innerRegs->EXMEM_setAluRes2(rs); // Stores rs' value in order to have it at WB stage.
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+void mipsPipelined::executeMOVN()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	uint32_t rt = innerRegs->IDEX_getRT();
+
+	
+	innerRegs->EXMEM_setAluRes( (rt==1) ? 1U :0 ) ; // Stores the comparison's result, in order to have it at WB stage
+							
+	innerRegs->EXMEM_setAluRes2(rs); // Stores rs' value in order to have it at WB stage.
+
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+}
+
+
+
+
+
+void mipsPipelined::executeJ()
 {
 	//TODO
 }
 
 
-/*********************************************
- *---------------MEMORY  STAGE---------------*
- * functionality of instruction in MEM stage *
- ********************************************/
+void mipsPipelined::executeJAL()
+{
+	//TODO
+}
 
+
+
+//TODO -> Fix branch cases, ask teammates for MIPS's delay slots issue.
+
+void mipsPipelined::executeBEQ()
+{
+	//TODO	
+}
+
+void mipsPipelined::executeBNE()
+{
+	//TODO	
+}
+void mipsPipelined::executeBLEZ()
+{
+	//TODO	
+}
+
+void mipsPipelined::executeBGEZ()
+{
+	//TODO	
+}
+
+
+
+void mipsPipelined::executeADDI()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( add( signExtend( (int16_t) innerRegs->IDEX_getImmed() ) ,rs));
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );	
+}
+
+void mipsPipelined::executeADDIU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( rs + signExtend( (int16_t) innerRegs->IDEX_getImmed() ) );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+void mipsPipelined::executeSLTI()
+{
+	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( ( rs < signExtend( (int16_t) innerRegs->IDEX_getImmed() )  )  ? 1U : 0  );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );	
+}
+
+void mipsPipelined::executeSLTIU()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( ( rs < (uint32_t) innerRegs->IDEX_getImmed()   )  ? 1U : 0  );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+void mipsPipelined::executeANDI()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( rs & (uint32_t) innerRegs->IDEX_getImmed()  );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeORI()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( rs | (uint32_t) innerRegs->IDEX_getImmed()  );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+
+}
+
+
+
+void mipsPipelined::executeXORI()
+{
+	uint32_t rs = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( ~ ( rs | (uint32_t) innerRegs->IDEX_getImmed() ) );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeLUI()
+{
+	uint32_t res = (uint32_t) innerRegs->IDEX_getImmed();
+	innerRegs->EXMEM_setAluRes( res << 16 );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+
+// Rwta ton mpampi an exoun alli diafora sto execute stage... nomizw mono sto WB allazoun
+// pou kratas 8, 16 kai 32 bits
+
+
+void mipsPipelined::executeLB()
+{
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() ); // get byte's address
+	innerRegs->EXMEM_setAluRes( addr );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
+}
+
+
+
+void mipsPipelined::executeLH()
+{
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( addr );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeLWL()
+{
+	//TODO
+	// ask teammates for function's usage
+}
+
+
+void mipsPipelined::executeLW()
+{
+	int32_t addr =  (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed()   );
+	innerRegs->EXMEM_setAluRes( addr );
+	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeLBU()
+{
+	innerRegs->EXMEM_setAluRes( (uint32_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeLHU()
+{
+	innerRegs->EXMEM_setAluRes( (uint32_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+}
+
+
+void mipsPipelined::executeLWR()
+{
+	//TODO
+	// ask teammates for function's usage
+}
+
+
+
+
+void mipsPipelined::executeSB()
+{
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() ); // get byte's address
+	innerRegs->EXMEM_setAluRes( addr );  // pass byte's address at EXMEM register
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt && 0xff );
+}
+
+void mipsPipelined::executeSH()
+{
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( addr );  
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt && 0xffff );
+}
+
+void mipsPipelined::executeSWL()
+{
+	//TODO
+}
+
+void mipsPipelined::executeSW()
+{
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( addr );  
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt );
+}
+
+void mipsPipelined::executeSWR()
+{
+	//TODO
+	// ask teammates for function's usage
+}
+
+// TODO  SOS   => Ask MPAMPIS about RMW... ???????????
+void mipsPipelined::executeLL()
+{
+	//TODO
+}
+
+void mipsPipelined::executeSC()
+{
+	//TODO
+}
 
 void mipsPipelined::memory()
 {
 	uint32_t op = OP( cmd[MEM] );
 	if( op == RTYPE1 ) {
-		switch( FUNCT( cmd[MEM] ) ) {		//only these two RTYPE instruction have work to do during mem stage
+		switch( FUNCT( cmd[MEM] ) ) {		
+
+			case( SLL ): memorySLL(); break;
+			case( SRL ): memorySRL(); break;
+			case( SRA ): memorySRA(); break;
+			case( SLLV ): memorySLLV(); break;
+			case( SRLV ): memorySRLV(); break;
+			case( SRAV ): memorySRAV(); break;
 			case( JR ): memoryJR(); break;
 			case( JALR ): memoryJALR(); break;
+			case( BREAK ): memoryBREAK(); break;
+			case( MFHI ): memoryMFHI(); break;
+			case( MTHI ): memoryMTHI(); break;
+			case( MFLO ): memoryMFLO(); break;
+			case( MTLO ): memoryMTLO(); break;
+			case( MULT ): memoryMULT(); break;
+			case( MULTU ): memoryMULTU(); break;
+			case( DIV ): memoryDIV(); break;
+			case( DIVU ): memoryDIVU(); break;
+			case( ADD ): memoryADD(); break;
+			case( ADDU ): memoryADDU(); break;
+			case( SUB ): memorySUB(); break;
+			case( SUBU ): memorySUBU(); break;
+			case( AND ): memoryAND(); break;
+			case( OR ): memoryOR(); break;
+			case( XOR ): memoryXOR(); break;
+			case( NOR ): memoryNOR(); break;
+			case( SLT ): memorySLT(); break;
+			case( SLTU ): memorySLTU(); break;
 			default:
 				break;
 		}
 			
-	} else if( op == RTYPE2 ) 
-		return;
+	} else if ( op == RTYPE2 ) {
+	
+		//RTYPE2 opuctions
+		switch( FUNCT( cmd[EX] ) ) {
+			case( MADD ): memoryMADD(); break;
+			case( MADDU ): memoryMADDU(); break;
+			case( MUL ): memoryMUL(); break;
+			case( MSUB ): memoryMSUB(); break;
+			case( MSUBU ): memoryMSUBU(); break;
+			case( CLZ ): memoryCLZ(); break;
+			case( CLO ): memoryCLO(); break;
+			case( MOVZ ): memoryMOVZ(); break;
+			case( MOVN ): memoryMOVN(); break;
+			default:
+				throw "Unhandled operation";
+		}
 
-	else if ( op == J ) { //the two JTYPE opuctions are following
+	} else if ( op == J ) { //the two JTYPE opuctions are following
 		
 	} else if ( op == JAL ) {
 
+	// TODO -> simplirwse J kai JAL
+
 
 	} else { //ITYPE here
-	
+	/*
+
+SOOOOOOOOS
+
+den evala:
+
+JR
+JALR
+BREAK
+BEQ
+BNE
+BLEZ
+BGEZ
+SB
+SH
+SWL
+SW
+SWR
+
+den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
+alla rwta teammates an toulaxiston eksasfalizw orthotita
+
+*/
 		switch( op ) {
 			case( BGEZ ):
 				//TODO: handle case of BGEZ, BGEZAL, BLTZAL, BLTZ
@@ -319,6 +916,14 @@ void mipsPipelined::memory()
 			case( BNE ): memoryBNE(); break;
 			case( BLEZ ): memoryBLEZ(); break;
 			case( BGTZ ): memoryBGEZ(); break;
+			case( ADDI ): memoryADDI(); break;
+			case( ADDIU ): memoryADDIU(); break;
+			case( SLTI ): memorySLTI(); break;
+			case( SLTIU ): memorySLTIU(); break;
+			case( ANDI ): memoryANDI(); break;
+			case( ORI ): memoryORI(); break;
+			case( XORI ): memoryXORI(); break;
+			case( LUI ): memoryLUI(); break;
 			case( LB ): memoryLB(); break;
 			case( LH ): memoryLH(); break;
 			case( LWL ): memoryLWL(); break;
@@ -337,8 +942,235 @@ void mipsPipelined::memory()
 	}
 }
 
+
+
 //functionality of MIPS instruction
-//in execute stage.
+//in memory stage.
+void mipsPipelined::memorySLL()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySRL()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySRA()
+{	
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySLLV()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySRLV()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySRAV()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryJR()
+{
+	//TODO
+}
+
+void mipsPipelined::memoryJALR()
+{
+	//TODO
+}
+
+void mipsPipelined::memoryBREAK()
+{
+	//TODO
+}
+
+void mipsPipelined::memoryMFHI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryMTHI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+}
+
+void mipsPipelined::memoryMFLO()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryMTLO()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+}
+
+void mipsPipelined::memoryMULT()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+
+}
+
+void mipsPipelined::memoryMULTU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+}
+
+void mipsPipelined::memoryDIV()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+
+}
+
+void mipsPipelined::memoryDIVU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+
+}
+
+void mipsPipelined::memoryADD()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryADDU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySUB()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySUBU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryAND()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryOR()
+{
+
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryXOR()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryNOR()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+void mipsPipelined::memorySLT()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySLTU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+void mipsPipelined::memoryMADD()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+}
+
+void mipsPipelined::memoryMADDU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+}
+
+void mipsPipelined::memoryMUL()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryMSUB()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+}
+
+
+void mipsPipelined::memoryMSUBU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+}
+
+void mipsPipelined::memoryCLZ()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryCLO()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+void mipsPipelined::memoryMOVZ()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryMOVN()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setAlu2( innerRegs->EXMEM_getAluRes2() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+// TODO -> simplirwse J kai JAL
+
+
 void mipsPipelined::memoryBEQ()
 {
 
@@ -357,6 +1189,56 @@ void mipsPipelined::memoryBLEZ()
 void mipsPipelined::memoryBGEZ()
 {
 
+}
+
+void mipsPipelined::memoryADDI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );	
+}
+
+void mipsPipelined::memoryADDIU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );;
+}
+
+void mipsPipelined::memorySLTI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memorySLTIU()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryANDI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+
+void mipsPipelined::memoryORI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+
+}
+
+void mipsPipelined::memoryXORI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
+}
+
+void mipsPipelined::memoryLUI()
+{
+	innerRegs->MEMWB_setAlu( innerRegs->EXMEM_getAluRes() );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
 }
 
 void mipsPipelined::memoryLB()
@@ -405,7 +1287,7 @@ void mipsPipelined::memoryLHU()
 }
 void mipsPipelined::memoryLWR()
 {
-
+	//TODO
 }
 
 void mipsPipelined::memorySB()
@@ -456,7 +1338,6 @@ void mipsPipelined::memorySC()
 	innerRegs->MEMWB_setAlu( ll );
 	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
 }
-
 
 
 /*********************************************
@@ -548,4 +1429,355 @@ void mipsPipelined::writeback()
 		} 	
 	}
 }
+
+
+/*
+
+SOOOOOOOOS
+
+den evala:
+
+JR
+JALR
+BREAK
+BEQ
+BNE
+BLEZ
+BGEZ
+SB
+SH
+SWL
+SW
+SWR
+
+den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
+alla rwta teammates an toulaxiston eksasfalizw orthotita
+
+*/
+
+
+void mipsPipelined::writebackSLL()
+{
+
+	/*
+
+	sos => rwta mpampi an dinw swsta orismata..
+
+
+	*/
+
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+
+
+	
+}
+
+void mipsPipelined::writebackSRL()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSRA()
+{	
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSLLV()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSRLV()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSRAV()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+
+
+void mipsPipelined::writebackMFHI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackMTHI()
+{
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackMFLO()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackMTLO()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackMULT()
+{
+	
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+
+}
+
+void mipsPipelined::writebackMULTU()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+}
+
+void mipsPipelined::writebackDIV()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+
+}
+
+void mipsPipelined::writebackDIVU()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+}
+
+void mipsPipelined::writebackADD()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackADDU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSUB()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSUBU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackAND()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackOR()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackXOR()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackNOR()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+void mipsPipelined::writebackSLT()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSLTU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+void mipsPipelined::writebackMADD()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+
+}
+
+void mipsPipelined::writebackMADDU()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+
+}
+
+void mipsPipelined::writebackMUL()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackMSUB()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+}
+
+
+void mipsPipelined::writebackMSUBU()
+{
+	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+}
+
+void mipsPipelined::writebackCLZ()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	
+}
+
+void mipsPipelined::writebackCLO()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+void mipsPipelined::writebackMOVZ()
+{
+
+
+	if ( innerRegs->MEMWB_getAlu() == 1 )
+	{
+
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu2() );
+
+	}
+
+}
+
+void mipsPipelined::writebackMOVN()
+{
+	
+
+	if ( innerRegs->MEMWB_getAlu() == 1 )
+	{
+
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu2() );
+
+	}
+}
+
+
+
+
+
+
+void mipsPipelined::writebackADDI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackADDIU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSLTI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackSLTIU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+void mipsPipelined::writebackANDI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+void mipsPipelined::writebackORI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+
+}
+
+
+
+void mipsPipelined::writebackXORI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+}
+
+
+void mipsPipelined::writebackLUI()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+
+}
+
+
+
+
+
+void mipsPipelined::writebackLB()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+}
+
+void mipsPipelined::writebackLH()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+}
+
+void mipsPipelined::writebackLWL() 
+{
+	//TODO
+}
+void mipsPipelined::writebackLW()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+}
+
+void mipsPipelined::writebackLBU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+}
+
+void mipsPipelined::writebackLHU()
+{
+	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+
+}
+void mipsPipelined::writebackLWR()
+{
+	//TODO
+}
+
+
+
+
+
+void mipsPipelined::writebackLL() 
+{
+
+// TODO
+
+
+}
+
+void mipsPipelined::writebackSC()
+{
+//TODO
+
+
+}
+
+
+
+
+
 

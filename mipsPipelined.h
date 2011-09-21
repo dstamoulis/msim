@@ -57,7 +57,8 @@ private:
 	uint32_t *cmd;
 	bool *valid;
 	int dependence;
-	int ll;		//used for ll and sc instructions
+	int ll;
+
 
 	void fetch();
 	void decode();
@@ -105,6 +106,8 @@ private:
 	void executeCLO();
 	void executeMOVZ();
 	void executeMOVN();
+	void executeJ();
+	void executeJAL();
 	void executeBEQ();
 	void executeBNE();
 	void executeBLEZ();
@@ -131,18 +134,63 @@ private:
 	void executeSWR();
 	void executeLL();
 	void executeSC();
+
+
 	
 	/********************
 	 * memory functions *
 	 ********************/
+
+	void memorySLL();
+	void memorySRL();
+	void memorySRA();
+	void memorySLLV();
+	void memorySRLV();
+	void memorySRAV();
 	void memoryJR();
 	void memoryJALR();
-	//TODO: add declarations for JTYPE
-	//TODO: handle case of BGEZ, BGEZAL, BLTZAL, BLTZ
+	void memoryBREAK();
+	void memoryMFHI();
+	void memoryMTHI();
+	void memoryMFLO();
+	void memoryMTLO();
+	void memoryMULT();
+	void memoryMULTU();
+	void memoryDIV();
+	void memoryDIVU();
+	void memoryADD();
+	void memoryADDU();
+	void memorySUB();
+	void memorySUBU();
+	void memoryAND();
+	void memoryOR();
+	void memoryXOR();
+	void memoryNOR();
+	void memorySLT();
+	void memorySLTU();
+	void memoryMADD();
+	void memoryMADDU();
+	void memoryMUL();
+	void memoryMSUB();
+	void memoryMSUBU();
+	void memoryCLZ();
+	void memoryCLO();
+	void memoryMOVZ();
+	void memoryMOVN();
+	void memoryJ();
+	void memoryJAL();
 	void memoryBEQ();
 	void memoryBNE();
 	void memoryBLEZ();
 	void memoryBGEZ();
+	void memoryADDI();
+	void memoryADDIU();
+	void memorySLTI();
+	void memorySLTIU();
+	void memoryANDI();
+	void memoryORI();
+	void memoryXORI();
+	void memoryLUI();
 	void memoryLB();
 	void memoryLH();
 	void memoryLWL();
@@ -158,9 +206,11 @@ private:
 	void memoryLL();
 	void memorySC();
 
+
 	/************************
 	 * write-back functions *
 	 ************************/
+
 	void writebackSLL();
 	void writebackSRL();
 	void writebackSRA();
@@ -211,6 +261,30 @@ private:
 	void writebackLWR();
 	void writebackLL();		//???
 	void writebackSC();
+
+/*
+
+SOOOOOOOOS
+
+den evala:
+
+JR
+JALR
+BREAK
+BEQ
+BNE
+BLEZ
+BGEZ
+SB
+SH
+SWL
+SW
+SWR
+
+den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
+alla rwta teammates an toulaxiston eksasfalizw orthotita
+
+*/
 
 };
 
