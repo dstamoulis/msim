@@ -24,9 +24,14 @@ public:
 		
 		innerRegs = new intermediateRegisters();
 		cmd = new uint32_t[STAGES];
+		valid = new bool[STAGES];
+		srcRegs = new uint32_t*[STAGES];
+		dstRegs = new uint32_t*[STAGES];
 		dependence = 0;
 
 		for( int i=0; i<STAGES; ++i ) {
+			srcRegs[i] = new uint32_t[2];
+			dstRegs[i] = new uint32_t[2];
 			cmd[i] = 0;
 			valid[i] = false;
 		}
@@ -37,9 +42,14 @@ public:
 
 		innerRegs = new intermediateRegisters();
 		cmd = new uint32_t[STAGES];
+		valid = new bool[STAGES];
+		srcRegs = new uint32_t*[STAGES];
+		dstRegs = new uint32_t*[STAGES];
 		dependence = 0;
 
 		for( int i=0; i<STAGES; ++i ) {
+			srcRegs[i] = new uint32_t[2];
+			dstRegs[i] = new uint32_t[2];
 			cmd[i] = 0;
 			valid[i] = false;
 		}
@@ -56,6 +66,8 @@ private:
 	intermediateRegisters *innerRegs;
 	uint32_t *cmd;
 	bool *valid;
+	uint32_t **srcRegs;
+	uint32_t **dstRegs;
 	int dependence;
 	int ll;
 
@@ -66,6 +78,7 @@ private:
 	void memory();
 	void writeback(); 
 
+	bool checkDependence();
 
 	/*********************
 	 * execute functions *

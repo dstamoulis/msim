@@ -17,6 +17,10 @@
 #define STACK_MAX 0x7ffffffc
 #define GLOBAL_INIT 0x10008000
 
+#define INVAL_REG -1
+#define LO_REG 32
+#define HI_REG 33
+
 class Register_File {
 
 public:

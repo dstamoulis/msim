@@ -19,13 +19,17 @@ using namespace std;
 #define MEM 3
 #define WB  4
 
+#define RTYPE( instr ) OP( instr ) == RTYPE1 || OP( instr ) == RTYPE2
 #define EMPTY_PIPELINE(valid) !( valid[IF] || valid[ID] || valid[EX] || valid[MEM] || valid[WB] )
-#define DEP_RS_RT RT( cmd[ID] ) == RT( cmd[EX] ) || RT( cmd[ID] ) == RT( cmd[MEM] ) || RT( cmd[ID] ) == RT( cmd[WB] )
-#define DEP_RT_RT RS( cmd[ID] ) == RT( cmd[EX] ) || RS( cmd[ID] ) == RT( cmd[MEM] ) || RS( cmd[ID] ) == RT( cmd[WB] )
-#define DEP_RS_RD ( OP( cmd[EX] ) == RTYPE1 || OP( cmd[EX] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[EX] ) ) \
-					|| ( OP( cmd[MEM] ) == RTYPE1 || OP( cmd[MEM] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[MEM] ) ) \
-					|| ( OP( cmd[WB] ) == RTYPE1 || OP( cmd[WB] == RTYPE2 ) && RT( cmd[ID] ) == RD( cmd[WB] ) )
-#define DEP_RT_RD RS( cmd[ID] ) == RD( cmd[EX] ) || RS( cmd[ID] ) == RD( cmd[MEM] ) || RS( cmd[ID] ) == RD( cmd[WB] )
+
+#define DEP_ID_EX ( srcRegs[ID][0] != INVAL_REG && ( srcRegs[ID][0] == dstRegs[EX][0] || srcRegs[ID][0] == dstRegs[EX][1] ) ) \
+				 || ( srcRegs[ID][1] != INVAL_REG && ( srcRegs[ID][1] == dstRegs[EX][0] || srcRegs[ID][1] == dstRegs[EX][1] ) )
+
+#define DEP_ID_MEM ( srcRegs[ID][0] != INVAL_REG && ( srcRegs[ID][0] == dstRegs[MEM][0] || srcRegs[ID][0] == dstRegs[MEM][1] ) ) \
+				 || ( srcRegs[ID][1] != INVAL_REG && ( srcRegs[ID][1] == dstRegs[MEM][0] || srcRegs[ID][1] == dstRegs[MEM][1] ) )
+
+#define DEP_ID_WB ( srcRegs[ID][0] != INVAL_REG && ( srcRegs[ID][0] == dstRegs[WB][0] || srcRegs[ID][0] == dstRegs[WB][1] ) ) \
+				 || ( srcRegs[ID][1] != INVAL_REG && ( srcRegs[ID][1] == dstRegs[WB][0] || srcRegs[ID][1] == dstRegs[WB][1] ) )
 
 void mipsPipelined::step()
 {
@@ -54,6 +58,11 @@ void mipsPipelined::step()
 	for (int i = WB; i < dependence; --i) { 
 		cmd[i]   = cmd[i-1];
 		valid[i] = valid[i-1];
+		srcRegs[i][0] = srcRegs[i-1][0];
+		srcRegs[i][1] = srcRegs[i-1][1];
+		dstRegs[i][0] = dstRegs[i-1][0];
+		dstRegs[i][1] = dstRegs[i-1][1];
+
 	}
 
 	valid[EX] = !dependence;  //if dependance exists EX stage is always invalid
@@ -72,18 +81,167 @@ void mipsPipelined::fetch(){
 	}
 
 	valid[IF] = true;
-
+	uint32_t temp = mem->loadWord( pc );
 	//set IF_ID intermediate register fields
-	innerRegs->IFID_setPC( mem->loadWord( pc ) );
+	cmd[IF] = temp;
+	innerRegs->IFID_setPC( temp );
 	innerRegs->IFID_setNextPC( mem->loadWord( pc + 4 ) );
+
+	if( OP( temp ) == RTYPE1 ) {
+
+		switch( FUNCT( temp ) ) {
+
+			case( MFHI ):
+				srcRegs[ID][0] = HI_REG;
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+			
+			case( MFLO ):
+				srcRegs[ID][0] = LO_REG;
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( MTHI ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = HI_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( MTLO ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = LO_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( DIV ):
+			case( DIVU ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp );
+				dstRegs[ID][0] = LO_REG;
+				dstRegs[ID][1] = HI_REG;;
+				break;				
+			
+			case( JALR ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( SLL ):
+			case( SRA ):
+			case( SRL ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp );
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+			case( JR ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = INVAL_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+	
+			default:
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp ); 
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+		}
+
+	} else if ( OP( temp ) == RTYPE2 ) {
+		switch( FUNCT( temp ) ) {
+			case( MADD ):
+			case( MADDU ):
+			case( MSUB ):
+			case( MSUBU ):
+			case( MUL ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp );
+				dstRegs[ID][0] = LO_REG;
+				dstRegs[ID][1] = HI_REG;;
+				break;	
+
+			case( CLZ ):
+			case( CLO ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG;
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			default:
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp ); 
+				dstRegs[ID][0] = RD( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+		}
+
+	} else if ( OP( temp ) == J ) {
+		//do nothing
+	} else if ( OP( temp ) == JAL ) {
+		//do nothing	
+	} else {
+		switch( OP( temp ) ) {
+			case( BEQ ):
+			case( BNE ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp ); 
+				dstRegs[ID][0] = INVAL_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( BGEZ ): 	//also BGEZAL, BLTZ, BLTZAL
+			case( BLEZ ):
+			case( BGTZ ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG; 
+				dstRegs[ID][0] = INVAL_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			case( SB ):
+			case( SH ):
+			case( SW ):
+			case( SWL ):
+			case( SWR ):
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = RT( temp ); 
+				dstRegs[ID][0] = INVAL_REG;
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+			default:
+				//All other ITYPE instructions left
+				srcRegs[ID][0] = RS( temp );
+				srcRegs[ID][1] = INVAL_REG; 
+				dstRegs[ID][0] = RT( temp );
+				dstRegs[ID][1] = INVAL_REG;
+				break;
+
+		}
+
+	}
 
 	pc += 4;
 }
 
 
 void mipsPipelined::decode() {
-	//TODO implement check for hazards.
 
+	if( checkDependence() ) {
+		dependence = 1;
+		return;
+	}
 
 	uint32_t temp = innerRegs->IFID_getPC();
 	
@@ -98,30 +256,16 @@ void mipsPipelined::decode() {
 
 	innerRegs->IDEX_setLO( reg->getLO() );	
 	innerRegs->IDEX_setHI( reg->getHI() );
-	
+
+		
 }
 
-bool checkDependence() 
+bool mipsPipelined::checkDependence()
 {
-	if( OP( cmd[ID] ) == RTYPE1 || OP( cmd[ID] ) == RTYPE2 ) {
-		
-		if( ) {
+	if( DEP_ID_EX || DEP_ID_MEM || DEP_ID_WB )
+		return true;
 
-		} else if () {
-
-
-		} else if () {
-
-
-		} else
-			if(  DEP_RS_RT || DEP_RT_RT || DEP_RS_RD || DEP_RT_RD ) {
-				dependence = 1;
-				return true;
-			}
-	}
-
-
-
+	return false;
 }
 
 
@@ -238,7 +382,6 @@ void mipsPipelined::executeSLL()
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setAluRes( rt << shamt );
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
-	
 }
 
 void mipsPipelined::executeSRL()
@@ -331,7 +474,6 @@ void mipsPipelined::executeMULT()
 
 	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
 	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
-
 }
 
 void mipsPipelined::executeMULTU()
@@ -363,15 +505,15 @@ void mipsPipelined::executeDIVU()
 
 	innerRegs->EXMEM_setAluRes(rs / rt);
 	innerRegs->EXMEM_setAluRes2(rs % rt);
-
 }
+
 void mipsPipelined::executeADD()
 {
 	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
 	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
-	innerRegs->EXMEM_setAluRes( add(rt,rs));
+	innerRegs->EXMEM_setAluRes( add(rt,rs) );
 
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeADDU()
@@ -389,9 +531,9 @@ void mipsPipelined::executeSUB()
 	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
 	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
 
-	innerRegs->EXMEM_setAluRes( subtract(rs,rt));
+	innerRegs->EXMEM_setAluRes( subtract(rs,rt) );
 
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs() );
 }
 
 void mipsPipelined::executeSUBU()
@@ -401,7 +543,7 @@ void mipsPipelined::executeSUBU()
 	
 	innerRegs->EXMEM_setAluRes( rs - rt );
 
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
+	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs()) ;
 }
 
 void mipsPipelined::executeAND()
@@ -470,7 +612,6 @@ void mipsPipelined::executeSLTU()
 void mipsPipelined::executeMADD()
 {
 	//TODO -> Tsekare an einai swsta ta orismata signed - unsigned (dimitris)
-
 	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
 	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
 
@@ -487,13 +628,10 @@ void mipsPipelined::executeMADD()
 
 	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
 	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
-
-
 }
 
 void mipsPipelined::executeMADDU()
 {
-	
 	uint32_t rs = innerRegs->IDEX_getRS();
 	uint32_t rt = innerRegs->IDEX_getRT();
 
@@ -506,7 +644,6 @@ void mipsPipelined::executeMADDU()
 	uint64_t hi_lo = ( hi | lo );
 
 	result += hi_lo;
-	
 
 	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for LO
 	innerRegs->EXMEM_setAluRes2((result >> 32 ) && 0xffffffff); // Stores into that register the result for HI
@@ -514,9 +651,6 @@ void mipsPipelined::executeMADDU()
 
 void mipsPipelined::executeMUL()
 {
-
-
-
 	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
 	int32_t rt = (int32_t) innerRegs->IDEX_getRT();
 
@@ -525,9 +659,6 @@ void mipsPipelined::executeMUL()
 	int64_t result = rs * rt;
 
 	innerRegs->EXMEM_setAluRes(result && 0xffffffff);  // Stores into that register the result for register rd
-
-
-
 }
 
 void mipsPipelined::executeMSUB()
@@ -547,7 +678,6 @@ void mipsPipelined::executeMSUB()
 
 	hi_lo -= result;
 	
-
 	innerRegs->EXMEM_setAluRes(hi_lo && 0xffffffff);  // Stores into that register the result for LO
 	innerRegs->EXMEM_setAluRes2((hi_lo >> 32 ) && 0xffffffff); // Stores into that register the result for HI
 }
@@ -559,15 +689,12 @@ void mipsPipelined::executeMSUBU()
 	uint32_t rt = innerRegs->IDEX_getRT();
 
 	uint64_t result = rs * rt;
-
 	uint64_t lo = (uint64_t) innerRegs->IDEX_getLO();
-
 	uint64_t hi =  ( (uint64_t) innerRegs->IDEX_getHI() ) << 32  ;
 
 	uint64_t hi_lo = ( hi | lo );
 
 	hi_lo -= result;
-	
 
 	innerRegs->EXMEM_setAluRes(hi_lo && 0xffffffff);  // Stores into that register the result for LO
 	innerRegs->EXMEM_setAluRes2((hi_lo >> 32 ) && 0xffffffff); // Stores into that register the result for HI
@@ -575,64 +702,45 @@ void mipsPipelined::executeMSUBU()
 
 void mipsPipelined::executeCLZ()
 {
-
 	uint32_t rs = innerRegs->IDEX_getRS();
-
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
-	
 	uint32_t count = 0;
 
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+
 	__asm__("again1:");
-
 	rs<<1;
-
 	__asm__("jc stop1");
-
 	count++;
-
 	__asm__("jmp again1");
-
 	__asm__("stop1:");
 
 	innerRegs->EXMEM_setAluRes( count ); // Stores into that register the result for register rd
-
-	
 }
 
 void mipsPipelined::executeCLO()
 {
 	uint32_t rs = innerRegs->IDEX_getRS();
-
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
-	
 	uint32_t count = 0;
 
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+
 	__asm__("again2:");
-
 	rs<<1;
-
 	__asm__("jnc stop2");
-
 	count++;
-
 	__asm__("jmp again2");
-
 	__asm__("stop2:");
 
 	innerRegs->EXMEM_setAluRes( count );
 }
-
 
 void mipsPipelined::executeMOVZ()
 {
 	uint32_t rs = innerRegs->IDEX_getRS();
 	uint32_t rt = innerRegs->IDEX_getRT();
 
-	
 	innerRegs->EXMEM_setAluRes( (rt==0) ? 1U :0 ) ; // Stores the comparison's result, in order to have it at WB stage
-							
 	innerRegs->EXMEM_setAluRes2(rs); // Stores rs' value in order to have it at WB stage.
-
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
 }
 
@@ -641,33 +749,22 @@ void mipsPipelined::executeMOVN()
 	uint32_t rs = innerRegs->IDEX_getRS();
 	uint32_t rt = innerRegs->IDEX_getRT();
 
-	
 	innerRegs->EXMEM_setAluRes( (rt==1) ? 1U :0 ) ; // Stores the comparison's result, in order to have it at WB stage
-							
 	innerRegs->EXMEM_setAluRes2(rs); // Stores rs' value in order to have it at WB stage.
-
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs()) ;
 }
-
-
-
-
 
 void mipsPipelined::executeJ()
 {
 	//TODO
 }
 
-
 void mipsPipelined::executeJAL()
 {
 	//TODO
 }
 
-
-
 //TODO -> Fix branch cases, ask teammates for MIPS's delay slots issue.
-
 void mipsPipelined::executeBEQ()
 {
 	//TODO	
@@ -677,6 +774,7 @@ void mipsPipelined::executeBNE()
 {
 	//TODO	
 }
+
 void mipsPipelined::executeBLEZ()
 {
 	//TODO	
@@ -687,13 +785,11 @@ void mipsPipelined::executeBGEZ()
 	//TODO	
 }
 
-
-
 void mipsPipelined::executeADDI()
 {
 	int32_t rs = (int32_t) innerRegs->IDEX_getRS();
-	innerRegs->EXMEM_setAluRes( add( signExtend( (int16_t) innerRegs->IDEX_getImmed() ) ,rs));
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );	
+	innerRegs->EXMEM_setAluRes( add( signExtend( (int16_t) innerRegs->IDEX_getImmed() ), rs ) );
+	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs() );	
 }
 
 void mipsPipelined::executeADDIU()
@@ -730,7 +826,6 @@ void mipsPipelined::executeORI()
 	uint32_t rs = innerRegs->IDEX_getRS();
 	innerRegs->EXMEM_setAluRes( rs | (uint32_t) innerRegs->IDEX_getImmed()  );
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
-
 }
 
 
@@ -738,10 +833,9 @@ void mipsPipelined::executeORI()
 void mipsPipelined::executeXORI()
 {
 	uint32_t rs = innerRegs->IDEX_getRS();
-	innerRegs->EXMEM_setAluRes( ~ ( rs | (uint32_t) innerRegs->IDEX_getImmed() ) );
+	innerRegs->EXMEM_setAluRes( ~( rs | (uint32_t) innerRegs->IDEX_getImmed() ) );
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
-
 
 void mipsPipelined::executeLUI()
 {
@@ -750,86 +844,91 @@ void mipsPipelined::executeLUI()
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
 }
 
-
-
-// Rwta ton mpampi an exoun alli diafora sto execute stage... nomizw mono sto WB allazoun
-// pou kratas 8, 16 kai 32 bits
-
-
 void mipsPipelined::executeLB()
 {
-	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() ); // get byte's address
-	innerRegs->EXMEM_setAluRes( addr );  // pass byte's address at EXMEM register
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
 	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
-
-
 void mipsPipelined::executeLH()
 {
-	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
-	innerRegs->EXMEM_setAluRes( addr );
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
-
 
 void mipsPipelined::executeLWL()
 {
-	//TODO
-	// ask teammates for function's usage
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
 
 void mipsPipelined::executeLW()
 {
-	int32_t addr =  (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed()   );
-	innerRegs->EXMEM_setAluRes( addr );
-	innerRegs->EXMEM_setDestRegs( innerRegs->IDEX_getDestRegs() );
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
 
 void mipsPipelined::executeLBU()
 {
-	innerRegs->EXMEM_setAluRes( (uint32_t) innerRegs->IDEX_getImmed() );
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
 
 void mipsPipelined::executeLHU()
 {
-	innerRegs->EXMEM_setAluRes( (uint32_t) innerRegs->IDEX_getImmed() );
-	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() );
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
 
 void mipsPipelined::executeLWR()
 {
-	//TODO
-	// ask teammates for function's usage
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
-
-
-
 
 void mipsPipelined::executeSB()
 {
-	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() ); // get byte's address
-	innerRegs->EXMEM_setAluRes( addr );  // pass byte's address at EXMEM register
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setStoreData( rt && 0xff );
 }
 
 void mipsPipelined::executeSH()
 {
-	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
-	innerRegs->EXMEM_setAluRes( addr );  
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setStoreData( rt && 0xffff );
 }
 
 void mipsPipelined::executeSWL()
 {
-	//TODO
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt );
 }
 
 void mipsPipelined::executeSW()
@@ -842,20 +941,34 @@ void mipsPipelined::executeSW()
 
 void mipsPipelined::executeSWR()
 {
-	//TODO
-	// ask teammates for function's usage
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt );
 }
 
-// TODO  SOS   => Ask MPAMPIS about RMW... ???????????
 void mipsPipelined::executeLL()
 {
-	//TODO
+	int32_t base = innerRegs->IDEX_getRS();
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( base + offset );  // pass byte's address at EXMEM register
+	innerRegs->EXMEM_setDestRegs(innerRegs->IDEX_getDestRegs() ); 
 }
 
 void mipsPipelined::executeSC()
 {
-	//TODO
+	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	innerRegs->EXMEM_setAluRes( addr );  
+	uint32_t rt = innerRegs->IDEX_getRT();
+	innerRegs->EXMEM_setStoreData( rt );
 }
+
+
+/*********************************************
+ *---------------MEMORY STAGE----------------*
+ * functionality of instruction in MEM stage *
+ ********************************************/
 
 void mipsPipelined::memory()
 {
@@ -919,29 +1032,7 @@ void mipsPipelined::memory()
 
 
 	} else { //ITYPE here
-	/*
 
-SOOOOOOOOS
-
-den evala:
-
-JR
-JALR
-BREAK
-BEQ
-BNE
-BLEZ
-BGEZ
-SB
-SH
-SWL
-SW
-SWR
-
-den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
-alla rwta teammates an toulaxiston eksasfalizw orthotita
-
-*/
 		switch( op ) {
 			case( BGEZ ):
 				//TODO: handle case of BGEZ, BGEZAL, BLTZAL, BLTZ
@@ -975,8 +1066,6 @@ alla rwta teammates an toulaxiston eksasfalizw orthotita
 		} 	
 	}
 }
-
-
 
 //functionality of MIPS instruction
 //in memory stage.
@@ -1297,10 +1386,11 @@ void mipsPipelined::memoryLWL()
 	uint32_t addr = innerRegs->EXMEM_getAluRes();
 	uint8_t bytes = 4 - addr%4;
 	for( int i=1; i<=bytes; ++i ) {
-		res = res | ( mem->loadByte( addr ) << ( (4-i)*8 ) ); 
+		res = res | ( ( (uint32_t) mem->loadByte( addr ) ) << ( (4-i)*8 ) ); 
 		addr++;
 	}
 }
+
 void mipsPipelined::memoryLW()
 {
 	uint32_t addr = innerRegs->EXMEM_getAluRes();
@@ -1323,14 +1413,14 @@ void mipsPipelined::memoryLHU()
 	uint16_t val = mem->loadHalfWord( addr );
 	innerRegs->MEMWB_setMem( (uint32_t) val  );
 	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
-
 }
+
 void mipsPipelined::memoryLWR()
 {
 	uint32_t res = 0;
 	uint32_t addr = innerRegs->EXMEM_getAluRes();
 	uint8_t bytes = 1 + addr%4;
-	for( i=0; i<bytes; ++i ) {
+	for( int i=0; i<bytes; ++i ) {
 		res = res | ( mem->loadByte( addr ) << (i*8) );
 		addr--;
 	}
@@ -1352,7 +1442,13 @@ void mipsPipelined::memorySH()
 
 void mipsPipelined::memorySWL()
 {
-	//TODO
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	uint8_t bytes = 4 - addr%4;
+	for( int i=1; i<=bytes; ++i ) {
+		mem->storeByte( addr, ( data >> ((4-i)*8) ) & 0xff );
+		addr++;
+	}
 }
 void mipsPipelined::memorySW()
 {
@@ -1362,7 +1458,13 @@ void mipsPipelined::memorySW()
 }
 void mipsPipelined::memorySWR()
 {
-	//TODO
+	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	uint32_t data = innerRegs->EXMEM_getStoreData();
+	uint8_t bytes = 1 + addr%4;
+	for( int i=0; i<bytes; ++i ) {
+		mem->storeByte( addr, ( data >> (i*8) ) & 0xff );
+		addr--;
+	}
 }
 
 void mipsPipelined::memoryLL() 
