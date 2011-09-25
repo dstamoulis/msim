@@ -27,7 +27,7 @@ public:
 		regs[ID_EX] = new uint32_t[8]; //TODO: probably must be changed when we take care of jumps.
 		regs_size[ID_EX] = 8;
 		regs[EX_MEM] = new uint32_t[5]; //TODO: check if we can merge some of the registers and allocate less memory.
-		regs_size[ID_EX] = 5;
+		regs_size[EX_MEM] = 5;
 		regs[MEM_WB] = new uint32_t[4]; //TODO: same here.
 		regs_size[MEM_WB] = 4;
 		
@@ -104,7 +104,7 @@ public:
 	uint32_t EXMEM_getDestRegs() { return regs[EX_MEM][4]; }
 
 
-	uint32_t EXMEM_getDestRegs( uint8_t &rd, uint8_t& rt ) 
+	void EXMEM_getDestRegs( uint8_t &rd, uint8_t& rt ) 
 	{ 
 		rd = (uint8_t) (regs[EX_MEM][3] >> 8 );
 		rt = (uint8_t) (regs[EX_MEM][3] && 0xff );
@@ -149,7 +149,7 @@ public:
 // kai me basi auta tha kanw eggrafi newn timwn sto register file
 
 
-private:
+//private:
 
 	//defining names for registers
 	enum {

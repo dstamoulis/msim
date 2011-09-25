@@ -1,6 +1,6 @@
 #project's makefile
 
-all: register_file.o memory.o processor.o mipsPipelined.o
+all: main
 
 CC=g++
 FLAGS=-Wall -O3 -g
@@ -18,8 +18,16 @@ processor.o: processor.cpp
 mipsPipelined.o: mipsPipelined.cpp
 	$(CC) $(CFLAGS) $^ -c
 
-msim: memory.o register_file.o
+safeops.o: safeops.cpp
+	$(CC) $(FLAGS) $^ -c
+
+main.o: main.cpp
+	$(CC) $(FLAGS) $^ -c
+
+main: memory.o register_file.o mipsPipelined.o processor.o safeops.o main.o
 	$(CC) $(FLAGS) $^ -o $@
+
+
 
 
 clean:

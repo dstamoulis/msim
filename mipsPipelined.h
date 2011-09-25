@@ -7,16 +7,23 @@
 
 #include "pipelineRegisters.h"
 #include "processor.h"
+#include <stdio.h>
 
 #define STAGES 5
+#define IF  0
+#define ID  1
+#define EX  2
+#define MEM 3
+#define WB  4
+
 
 class mipsPipelined : simpleProcessor {
 
 public:
-	virtual void reset();
-	virtual void run();
-	virtual void step();
-	virtual void setTextArea( uint32_t, uint32_t );
+	void reset(){};
+	void run();
+	void step();
+	void setTextArea( uint32_t, uint32_t ){};
 
 
 	//constructors and destructor
@@ -60,6 +67,20 @@ public:
 		delete[] cmd;
 		delete[] innerRegs;
 	}
+
+	void showMemory( uint32_t start, uint32_t end ) {
+		mem->showMemory( start, end );
+	}
+
+	void printRegisters() {
+		reg->printRegisters();
+		printf( "PC:\t%x\n", pc );
+		printf( "IF:\t%x\n", valid[IF] ? cmd[IF] : 0xffffffff );
+		printf( "ID:\t%x\n", valid[ID] ? cmd[ID] : 0xffffffff );
+		printf( "EX:\t%x\n", valid[EX] ? cmd[EX] : 0xffffffff);
+		printf( "MEM:\t%x\n", valid[MEM] ? cmd[MEM] : 0xffffffff );
+		printf( "WB:\t%x\n", valid[WB] ? cmd[WB] : 0xffffffff );
+}
 
 private:
 

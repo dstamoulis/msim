@@ -31,12 +31,12 @@ public:
  	 * Functions for loading and setting memory areas.
 	 * Need to check for word alignment and bad address.
 	 */
-	int32_t loadWord( uint32_t addr );
-	void storeWord( uint32_t addr, int32_t val );
-	int16_t loadHalfWord( uint32_t addr );
-	void storeHalfWord( uint32_t addr, int16_t val );
-	int8_t loadByte( uint32_t addr );
-	void storeByte( uint32_t addr, int8_t val );
+	uint32_t loadWord( uint32_t addr );
+	void storeWord( uint32_t addr, uint32_t val );
+	uint16_t loadHalfWord( uint32_t addr );
+	void storeHalfWord( uint32_t addr, uint16_t val );
+	uint8_t loadByte( uint32_t addr );
+	void storeByte( uint32_t addr, uint8_t val );
 
 protected:
 	endian byteOrder;
@@ -49,12 +49,13 @@ public:
 	simpleMemory( uint32_t size );
 	simpleMemory( uint32_t size, endian order );
 	~simpleMemory();
-	int32_t loadWord( uint32_t addr );
-	void storeWord( uint32_t addr, int32_t val );
-	int16_t loadHalfWord( uint32_t addr );
-	void storeHalfWord( uint32_t addr, int16_t val );
-	int8_t loadByte( uint32_t addr );
-	void storeByte( uint32_t addr, int8_t val );
+	uint32_t loadWord( uint32_t addr );
+	void storeWord( uint32_t addr, uint32_t val );
+	uint16_t loadHalfWord( uint32_t addr );
+	void storeHalfWord( uint32_t addr, uint16_t val );
+	uint8_t loadByte( uint32_t addr );
+	void storeByte( uint32_t addr, uint8_t val );
+	void showMemory( uint32_t, uint32_t );
 
 private:
 	uint8_t *mem;

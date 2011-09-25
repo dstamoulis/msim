@@ -8,6 +8,7 @@
  * protected are leaved to the processor to be checked. 
  */
 #include "memory.h"
+#include <stdio.h>
 
 using namespace std;
 
@@ -21,7 +22,8 @@ simpleMemory::simpleMemory( uint32_t size ) : mem_size( size )
 {
 	if( size == 0 ) 
 		throw "WTF??? zero memory??";
-	
+
+	byteOrder = BIG_END;	
 	mem = new uint8_t[ size ];
 }
 
@@ -51,7 +53,7 @@ simpleMemory::~simpleMemory()
  * loads/stores of memory areas. Checks for proper alignment 
  * of memory areas requested and addresses in bound.
  */
-int32_t simpleMemory::loadWord( uint32_t addr )
+uint32_t simpleMemory::loadWord( uint32_t addr )
 {
 	if( addr % 4 != 0 )
 		throw "Memory addresses should be word aligned";
@@ -59,7 +61,7 @@ int32_t simpleMemory::loadWord( uint32_t addr )
 	if( addr >= mem_size )
 		throw "Address requested is out of bounds";
 
-	int32_t ret;
+	uint32_t ret;
 	
 	if( big_endian() )
 		memcpy( &ret, &mem[addr], 4 );
@@ -75,7 +77,7 @@ int32_t simpleMemory::loadWord( uint32_t addr )
 	return ret;
 }
 
-void simpleMemory::storeWord( uint32_t addr, int32_t val )
+void simpleMemory::storeWord( uint32_t addr, uint32_t val )
 {
 	if( addr % 4 != 0 )
 		throw "Memory addresses should be word aligned";
@@ -94,7 +96,7 @@ void simpleMemory::storeWord( uint32_t addr, int32_t val )
 	}
 }
 
-int16_t simpleMemory::loadHalfWord( uint32_t addr )
+uint16_t simpleMemory::loadHalfWord( uint32_t addr )
 {
 
 	/*
@@ -107,7 +109,7 @@ int16_t simpleMemory::loadHalfWord( uint32_t addr )
 	if( addr >= mem_size )
 		throw "Address requested is out of bounds";
 
-	int16_t ret;
+	uint16_t ret;
 	if( big_endian() )
 		memcpy( &ret, &mem[addr], 2 );
 	else {
@@ -121,7 +123,7 @@ int16_t simpleMemory::loadHalfWord( uint32_t addr )
 	return ret;
 }
 
-void simpleMemory::storeHalfWord( uint32_t addr, int16_t val )
+void simpleMemory::storeHalfWord( uint32_t addr, uint16_t val )
 {
 	if( addr % 4 != 0 )
 		throw "Memory addresses should be word aligned";
@@ -141,7 +143,7 @@ void simpleMemory::storeHalfWord( uint32_t addr, int16_t val )
  * Functions concerning byte don't have to check
  * for aligment restrictions.
  */
-int8_t simpleMemory::loadByte( uint32_t addr )
+uint8_t simpleMemory::loadByte( uint32_t addr )
 {
 	if( addr >= mem_size )
 		throw "Address requested is out of bounds";
@@ -149,7 +151,7 @@ int8_t simpleMemory::loadByte( uint32_t addr )
 	return mem[addr];
 }
 
-void simpleMemory::storeByte( uint32_t addr, int8_t val )
+void simpleMemory::storeByte( uint32_t addr, uint8_t val )
 {
 	if( addr >= mem_size )
 		throw "Address requested is out of bounds";
@@ -157,4 +159,18 @@ void simpleMemory::storeByte( uint32_t addr, int8_t val )
 	mem[addr] = val;
 }
 
+
+/*
+ * print an area of the memory. 
+ * Useful for debugging.
+ */
+void simpleMemory::showMemory( uint32_t startAddr, uint32_t endAddr )
+{
+	printf( "-------------MEMORY--------------\n" );
+	printf( "Address\t\tValue\n" );
+	for( uint32_t i = startAddr; i<endAddr+4; ++i ) 
+		printf( "%x|%u\t\t%x\n", i,i, loadByte( i ) );
+
+
+}
 

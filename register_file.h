@@ -51,13 +51,16 @@ public:
 
 	//reset Register File. Restore default values in registers;
 	void reset();
+	void printRegisters();
 
 private:
 	//..and here its implementation
 	int32_t registers[ REG_NR ];
 	int32_t HI, LO;
-	int32_t EX;		//exceptions bitmap		?? maybe uint32_t
-	int32_t BRK;	//determines the upper limit of the current data segment.
+	uint32_t EX;		//exceptions bitmap		?? maybe uint32_t
+	int32_t BRK;		//determines the upper limit of the current data segment.
+
+	
 };
 
 #endif /* __REGISTER_FILE__ */

@@ -5,7 +5,7 @@
  * a register value.
  */
 
-
+#include <stdio.h>
 #include "register_file.h"
 
 /*
@@ -45,4 +45,16 @@ void Register_File::reset()
 	memset( registers, 0, REG_NR*4 );
 	registers[29] = STACK_MAX;
 	registers[28] = GLOBAL_INIT;
+}
+
+void Register_File::printRegisters()
+{
+	printf( "-------------REGISTER FILE-------------\n" );
+	
+	for( int i=0; i<REG_NR; ++i ) 
+		printf( "%d:\t%x\n", i, registers[i] );
+	
+	printf( "HI:\t%x\n", HI );
+	printf( "LO:\t%x\n", LO );
+
 }
