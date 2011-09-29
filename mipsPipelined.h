@@ -34,7 +34,7 @@ public:
 		valid = new bool[STAGES];
 		srcRegs = new uint32_t*[STAGES];
 		dstRegs = new uint32_t*[STAGES];
-		dependence = 0;
+		dependence = false;
 
 		for( int i=0; i<STAGES; ++i ) {
 			srcRegs[i] = new uint32_t[2];
@@ -52,7 +52,7 @@ public:
 		valid = new bool[STAGES];
 		srcRegs = new uint32_t*[STAGES];
 		dstRegs = new uint32_t*[STAGES];
-		dependence = 0;
+		dependence = false;
 
 		for( int i=0; i<STAGES; ++i ) {
 			srcRegs[i] = new uint32_t[2];
@@ -73,13 +73,22 @@ public:
 	}
 
 	void printRegisters() {
-		reg->printRegisters();
-		printf( "PC:\t%x\n", pc );
-		printf( "IF:\t%x\n", valid[IF] ? cmd[IF] : 0xffffffff );
-		printf( "ID:\t%x\n", valid[ID] ? cmd[ID] : 0xffffffff );
-		printf( "EX:\t%x\n", valid[EX] ? cmd[EX] : 0xffffffff);
-		printf( "MEM:\t%x\n", valid[MEM] ? cmd[MEM] : 0xffffffff );
-		printf( "WB:\t%x\n", valid[WB] ? cmd[WB] : 0xffffffff );
+//		reg->printRegisters();
+		printf( "PC:\t%d\n", pc );
+		printf( "IF: %x,\tvalid: %s,\tsrc[0]: %d,\tsrc[1]: %d,\tdst[0]: %d,\tdst[1]: %d\n",
+					valid[IF] ? cmd[IF] : 0x00000000, ( valid[IF] )? "true" : "false", srcRegs[IF][0], srcRegs[IF][1], dstRegs[IF][0], dstRegs[IF][1] );
+		printf( "ID:  %x,\tvalid: %s,\tsrc[0]: %d,\tsrc[1]: %d,\tdst[0]: %d,\tdst[1]: %d\n",
+					valid[ID] ? cmd[ID] : 0x00000000, valid[ID] ? "true" : "false", srcRegs[ID][0], srcRegs[ID][1], dstRegs[ID][0], dstRegs[ID][1] );
+		printf( "EX:  %x,\tvalid: %s,\tsrc[0]: %d,\tsrc[1]: %d,\tdst[0]: %d,\tdst[1]: %d\n",
+					valid[EX] ? cmd[EX] : 0x00000000, valid[EX] ? "true" : "false", srcRegs[EX][0], srcRegs[EX][1], dstRegs[EX][0], dstRegs[EX][1] );
+		printf( "MEM: %x,\tvalid: %s,\tsrc[0]: %d,\tsrc[1]: %d,\tdst[0]: %d,\tdst[1]: %d\n",
+					valid[MEM] ? cmd[MEM] : 0x00000000, valid[MEM] ? "true" : "false", srcRegs[MEM][0], srcRegs[MEM][1], dstRegs[MEM][0], dstRegs[MEM][1] );
+		printf( "WB:  %x,\tvalid: %s,\tsrc[0]: %d,\tsrc[1]: %d,\tdst[0]: %d,\tdst[1]: %d\n",
+					valid[WB] ? cmd[WB] : 0x00000000, valid[WB] ? "true" : "false", srcRegs[WB][0], srcRegs[WB][1], dstRegs[WB][0], dstRegs[WB][1] );
+
+
+
+	
 }
 
 private:
@@ -89,7 +98,7 @@ private:
 	bool *valid;
 	uint32_t **srcRegs;
 	uint32_t **dstRegs;
-	int dependence;
+	bool dependence;
 	int ll;
 
 

@@ -45,26 +45,37 @@ void mipsPipelined::step()
 		throw ex.str();
 	}
 
-	if( EMPTY_PIPELINE( valid ) && pc > endAddr ) {
-		ex << "Error: empty pipeline" << endl;
-		throw ex.str();
-	}
+//	if( EMPTY_PIPELINE( valid ) && pc > endAddr ) {
+//		ex << "Error: empty pipeline" << endl;
+//		throw ex.str();
+//	}
 
-
-	for (int i = WB; i > dependence; --i) { 
+	for (int i = WB; i > EX; --i) { 
 		cmd[i]   = cmd[i-1];
 		valid[i] = valid[i-1];
 		srcRegs[i][0] = srcRegs[i-1][0];
 		srcRegs[i][1] = srcRegs[i-1][1];
 		dstRegs[i][0] = dstRegs[i-1][0];
 		dstRegs[i][1] = dstRegs[i-1][1];
-
 	}
 
-	valid[EX] = !dependence;  //if dependance exists EX stage is always invalid
-			                  //that is, opuction located at ID stage does not progress
+	dependence = checkDependence();
+	
+	if( !dependence )
+		for (int i = EX; i > IF; --i) { 
+			cmd[i]   = cmd[i-1];
+			valid[i] = valid[i-1];
+			srcRegs[i][0] = srcRegs[i-1][0];
+			srcRegs[i][1] = srcRegs[i-1][1];
+			dstRegs[i][0] = dstRegs[i-1][0];
+			dstRegs[i][1] = dstRegs[i-1][1];
+		}
+	
 
-
+  //if dependance exists EX stage is always invalid
+  //that is, opuction located at ID stage does not progress
+	if( dependence )
+		valid[EX] = false;
 
 	//execute each stage of the pipeline	
 	if( valid[WB] )
@@ -78,7 +89,6 @@ void mipsPipelined::step()
 	fetch();
 
 }
-
 
 void mipsPipelined::fetch() {
 
@@ -107,68 +117,68 @@ void mipsPipelined::fetch() {
 		switch( FUNCT( temp ) ) {
 
 			case( MFHI ):
-				srcRegs[ID][0] = HI_REG;
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = HI_REG;
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 			
 			case( MFLO ):
-				srcRegs[ID][0] = LO_REG;
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = LO_REG;
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( MTHI ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = HI_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = HI_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( MTLO ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = LO_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = LO_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( DIV ):
 			case( DIVU ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp );
-				dstRegs[ID][0] = LO_REG;
-				dstRegs[ID][1] = HI_REG;;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp );
+				dstRegs[IF][0] = LO_REG;
+				dstRegs[IF][1] = HI_REG;;
 				break;				
 			
 			case( JALR ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( SLL ):
 			case( SRA ):
 			case( SRL ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp );
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp );
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 			case( JR ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = INVAL_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = INVAL_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 	
 			default:
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp ); 
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp ); 
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 		}
 
@@ -179,25 +189,25 @@ void mipsPipelined::fetch() {
 			case( MSUB ):
 			case( MSUBU ):
 			case( MUL ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp );
-				dstRegs[ID][0] = LO_REG;
-				dstRegs[ID][1] = HI_REG;;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp );
+				dstRegs[IF][0] = LO_REG;
+				dstRegs[IF][1] = HI_REG;;
 				break;	
 
 			case( CLZ ):
 			case( CLO ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG;
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG;
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			default:
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp ); 
-				dstRegs[ID][0] = RD( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp ); 
+				dstRegs[IF][0] = RD( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 		}
 
@@ -209,19 +219,19 @@ void mipsPipelined::fetch() {
 		switch( OP( temp ) ) {
 			case( BEQ ):
 			case( BNE ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp ); 
-				dstRegs[ID][0] = INVAL_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp ); 
+				dstRegs[IF][0] = INVAL_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( BGEZ ): 	//also BGEZAL, BLTZ, BLTZAL
 			case( BLEZ ):
 			case( BGTZ ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG; 
-				dstRegs[ID][0] = INVAL_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG; 
+				dstRegs[IF][0] = INVAL_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			case( SB ):
@@ -229,18 +239,18 @@ void mipsPipelined::fetch() {
 			case( SW ):
 			case( SWL ):
 			case( SWR ):
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = RT( temp ); 
-				dstRegs[ID][0] = INVAL_REG;
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = RT( temp ); 
+				dstRegs[IF][0] = INVAL_REG;
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 			default:
 				//All other ITYPE instructions left
-				srcRegs[ID][0] = RS( temp );
-				srcRegs[ID][1] = INVAL_REG; 
-				dstRegs[ID][0] = RT( temp );
-				dstRegs[ID][1] = INVAL_REG;
+				srcRegs[IF][0] = RS( temp );
+				srcRegs[IF][1] = INVAL_REG; 
+				dstRegs[IF][0] = RT( temp );
+				dstRegs[IF][1] = INVAL_REG;
 				break;
 
 		}
@@ -253,28 +263,22 @@ void mipsPipelined::fetch() {
 
 void mipsPipelined::decode() {
 
-	if( checkDependence() ) {
-		printf( "Dependence detected!!!\n" );
-		dependence = 1;
-		return;
+	if( !dependence ) {
+		int32_t temp = innerRegs->IFID_getPC();
+		innerRegs->IDEX_setNextPC( innerRegs->IFID_getNextPC() );
 	}
 
-	dependence = 0;
-
-	uint32_t temp = innerRegs->IFID_getPC();
-	
 	//set fields of IDEX intermediate regiser fields
-	innerRegs->IDEX_setRT( reg->getReg(RT(temp)) );
-	innerRegs->IDEX_setRS( reg->getReg(RS(temp)) );
-	innerRegs->IDEX_setNextPC( innerRegs->IFID_getNextPC() );
-	innerRegs->IDEX_setImmed( IMMED(temp) );
-	innerRegs->IDEX_setDestRegs( RT(temp), RD(temp) );
-	innerRegs->IDEX_setShamt( SHAMT( temp ) );
+	innerRegs->IDEX_setRT( reg->getReg(RT(cmd[EX])) );
+	innerRegs->IDEX_setRS( reg->getReg(RS(cmd[EX])) );
+	innerRegs->IDEX_setImmed( IMMED(cmd[EX]) );
+	innerRegs->IDEX_setDestRegs( RT(cmd[EX]), RD(cmd[EX]) );
+	innerRegs->IDEX_setShamt( SHAMT( cmd[EX] ) );
+
 	//TODO: Add functionallity for J-type cases.
 	innerRegs->IDEX_setLO( reg->getLO() );	
 	innerRegs->IDEX_setHI( reg->getHI() );
 
-		
 }
 
 bool mipsPipelined::checkDependence()
@@ -1565,6 +1569,7 @@ void mipsPipelined::writeback()
 			case( SC ): writebackSC(); break;
 		} 	
 	}
+
 }
 
 
