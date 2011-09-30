@@ -304,7 +304,11 @@ private:
 	void writebackLWR();
 	void writebackLL();		//???
 	void writebackSC();
-
+	void writebackSB();
+	void writebackSH();
+	void writebackSWL();
+	void writebackSW();
+	void writebackSWR();
 /*
 
 SOOOOOOOOS
@@ -318,11 +322,6 @@ BEQ
 BNE
 BLEZ
 BGEZ
-SB
-SH
-SWL
-SW
-SWR
 
 den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
 alla rwta teammates an toulaxiston eksasfalizw orthotita

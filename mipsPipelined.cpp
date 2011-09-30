@@ -45,10 +45,10 @@ void mipsPipelined::step()
 		throw ex.str();
 	}
 
-//	if( EMPTY_PIPELINE( valid ) && pc > endAddr ) {
-//		ex << "Error: empty pipeline" << endl;
-//		throw ex.str();
-//	}
+	if( EMPTY_PIPELINE( valid ) && pc > endAddr ) {
+		ex << "Error: empty pipeline" << endl;
+		throw ex.str();
+	}
 
 	for (int i = WB; i > EX; --i) { 
 		cmd[i]   = cmd[i-1];
@@ -73,7 +73,7 @@ void mipsPipelined::step()
 	
 
   //if dependance exists EX stage is always invalid
-  //that is, opuction located at ID stage does not progress
+  //that is, operation located at ID stage does not progress
 	if( dependence )
 		valid[EX] = false;
 
@@ -269,11 +269,11 @@ void mipsPipelined::decode() {
 	}
 
 	//set fields of IDEX intermediate regiser fields
-	innerRegs->IDEX_setRT( reg->getReg(RT(cmd[EX])) );
-	innerRegs->IDEX_setRS( reg->getReg(RS(cmd[EX])) );
-	innerRegs->IDEX_setImmed( IMMED(cmd[EX]) );
-	innerRegs->IDEX_setDestRegs( RT(cmd[EX]), RD(cmd[EX]) );
-	innerRegs->IDEX_setShamt( SHAMT( cmd[EX] ) );
+	innerRegs->IDEX_setRT( reg->getReg(RT(cmd[ID])) );
+	innerRegs->IDEX_setRS( reg->getReg(RS(cmd[ID])) );
+	innerRegs->IDEX_setImmed( IMMED(cmd[ID]) );
+	innerRegs->IDEX_setDestRegs( RT(cmd[ID]), RD(cmd[ID]) );
+	innerRegs->IDEX_setShamt( SHAMT( cmd[ID] ) );
 
 	//TODO: Add functionallity for J-type cases.
 	innerRegs->IDEX_setLO( reg->getLO() );	
@@ -300,7 +300,7 @@ void mipsPipelined::execute() {
 	uint32_t op = OP( cmd[EX] );
 	if( op == RTYPE1 ) {
 
-		//RTYPE1 opuctions
+		//RTYPE1 operations
 		switch( FUNCT( cmd[EX] ) ) {
 			case( SLL ): executeSLL(); break;
 			case( SRL ): executeSRL(); break;
@@ -330,12 +330,12 @@ void mipsPipelined::execute() {
 			case( SLT ): executeSLT(); break;
 			case( SLTU ): executeSLTU(); break;
 			default:
-				throw "Unhandled operation";
+				throw "Unhandled operation EX";
 		} 
 
 	} else if ( op == RTYPE2 ) {
 	
-		//RTYPE2 opuctions
+		//RTYPE2 operations
 		switch( FUNCT( cmd[EX] ) ) {
 			case( MADD ): executeMADD(); break;
 			case( MADDU ): executeMADDU(); break;
@@ -347,7 +347,7 @@ void mipsPipelined::execute() {
 			case( MOVZ ): executeMOVZ(); break;
 			case( MOVN ): executeMOVN(); break;
 			default:
-				throw "Unhandled operation";
+				throw "Unhandled operation EX";
 		}
 
 	} else if ( op == J ) { 
@@ -390,7 +390,7 @@ void mipsPipelined::execute() {
 			case( LL ): executeLL(); break;
 			case( SC ): executeSC(); break;
 			default:
-				throw "Unhandled operation";
+				throw "Unhandled operation EX";
 		} 	
 	}
 }
@@ -926,10 +926,13 @@ void mipsPipelined::executeSWL()
 
 void mipsPipelined::executeSW()
 {
-	int32_t addr = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
-	innerRegs->EXMEM_setAluRes( addr );  
+	int32_t offset = (int32_t) signExtend( (int16_t) innerRegs->IDEX_getImmed() );
+	int32_t base = innerRegs->IDEX_getRS();
+	innerRegs->EXMEM_setAluRes( base + offset );  
 	uint32_t rt = innerRegs->IDEX_getRT();
 	innerRegs->EXMEM_setStoreData( rt );
+	cout << "executeWB() ran... base == " << base << ", offset " << offset << endl; 
+
 }
 
 void mipsPipelined::executeSWR()
@@ -997,12 +1000,12 @@ void mipsPipelined::memory()
 			case( SLT ): memorySLT(); break;
 			case( SLTU ): memorySLTU(); break;
 			default:
-				break;
+				throw "Unhandled operation MEM";
 		}
 			
 	} else if ( op == RTYPE2 ) {
 	
-		//RTYPE2 opuctions
+		//RTYPE2 operations
 		switch( FUNCT( cmd[EX] ) ) {
 			case( MADD ): memoryMADD(); break;
 			case( MADDU ): memoryMADDU(); break;
@@ -1014,10 +1017,10 @@ void mipsPipelined::memory()
 			case( MOVZ ): memoryMOVZ(); break;
 			case( MOVN ): memoryMOVN(); break;
 			default:
-				throw "Unhandled operation";
+				throw "Unhandled operation MEM";
 		}
 
-	} else if ( op == J ) { //the two JTYPE opuctions are following
+	} else if ( op == J ) { //the two JTYPE operations are following
 		
 	} else if ( op == JAL ) {
 
@@ -1056,6 +1059,8 @@ void mipsPipelined::memory()
 			case( SWR ): memorySWR(); break;
 			case( LL ): memoryLL(); break;
 			case( SC ): memorySC(); break;
+			default:
+				throw "Unhandled operation MEM";
 		} 	
 	}
 }
@@ -1382,6 +1387,8 @@ void mipsPipelined::memoryLWL()
 		res = res | ( ( (uint32_t) mem->loadByte( addr ) ) << ( (4-i)*8 ) ); 
 		addr++;
 	}
+	innerRegs->MEMWB_setMem( res );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
 }
 
 void mipsPipelined::memoryLW()
@@ -1417,6 +1424,8 @@ void mipsPipelined::memoryLWR()
 		res = res | ( mem->loadByte( addr ) << (i*8) );
 		addr--;
 	}
+	innerRegs->MEMWB_setMem( res );
+	innerRegs->MEMWB_setDestRegs( innerRegs->EXMEM_getDestRegs() );
 }
 
 void mipsPipelined::memorySB()
@@ -1446,6 +1455,7 @@ void mipsPipelined::memorySWL()
 void mipsPipelined::memorySW()
 {
 	uint32_t addr = innerRegs->EXMEM_getAluRes();
+	cout << addr << endl;
 	uint32_t data = innerRegs->EXMEM_getStoreData();
 	mem->storeWord( addr,data );
 }
@@ -1492,7 +1502,7 @@ void mipsPipelined::writeback()
 	uint32_t op = OP( cmd[WB] );
 	if( op == RTYPE1 ) {
 
-		//RTYPE1 opuctions
+		//RTYPE1 operations
 		switch( FUNCT( cmd[WB] ) ) {
 			case( SLL ): writebackSLL(); break;
 			case( SRL ): writebackSRL(); break;
@@ -1522,12 +1532,12 @@ void mipsPipelined::writeback()
 			case( SLT ): writebackSLT(); break;
 			case( SLTU ): writebackSLTU(); break;
 			default:
-				throw "Unhandled opuction";
+				throw "Unhandled operation WB";
 		} 
 
 	} else if ( op == RTYPE2 ) {
 	
-		//RTYPE2 opuctions
+		//RTYPE2 operations
 		switch( FUNCT( cmd[WB] ) ) {
 			case( MADD ): writebackMADD(); break;
 			case( MADDU ): writebackMADDU(); break;
@@ -1539,10 +1549,10 @@ void mipsPipelined::writeback()
 			case( MOVZ ): writebackMOVZ(); break;
 			case( MOVN ): writebackMOVN(); break;
 			default:
-				throw "Unhandled opuction";
+				throw "Unhandled operation WB";
 		}
 
-	} else if ( op == J ) { //the two JTYPE opuctions are following
+	} else if ( op == J ) { //the two JTYPE operations are following
 		
 	} else if ( op == JAL ) {
 
@@ -1567,6 +1577,13 @@ void mipsPipelined::writeback()
 			case( LWR ): writebackLWR(); break;
 			case( LL ): writebackLL(); break;		//???
 			case( SC ): writebackSC(); break;
+			case( SB ): writebackSB(); break;
+			case( SH ): writebackSH(); break;
+			case( SWL ): writebackSWL(); break;
+			case( SW ): writebackSW(); break;
+			case( SWR ): writebackSWR(); break;
+			default:
+				throw "Unhandled operation WB";
 		} 	
 	}
 
@@ -1586,11 +1603,6 @@ BEQ
 BNE
 BLEZ
 BGEZ
-SB
-SH
-SWL
-SW
-SWR
 
 den tis eixe kai o mpampis epeidi den kanoun tpt sto WB
 alla rwta teammates an toulaxiston eksasfalizw orthotita
@@ -1600,326 +1612,277 @@ alla rwta teammates an toulaxiston eksasfalizw orthotita
 
 void mipsPipelined::writebackSLL()
 {
-
-	/*
-
-	sos => rwta mpampi an dinw swsta orismata..
-
-
-	*/
-
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
-
-
-	
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSRL()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSRA()
 {	
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSLLV()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSRLV()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSRAV()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
-
-
-
 
 void mipsPipelined::writebackMFHI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackMTHI()
 {
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackMFLO()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackMTLO()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackMULT()
 {
-	
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
-
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackMULTU()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackDIV()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 
 }
 
 void mipsPipelined::writebackDIVU()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackADD()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackADDU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSUB()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSUBU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackAND()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackOR()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackXOR()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackNOR()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
-
 
 void mipsPipelined::writebackSLT()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSLTU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
-
 
 void mipsPipelined::writebackMADD()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 
 }
 
 void mipsPipelined::writebackMADDU()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
-
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI(  innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackMUL()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackMSUB()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 }
 
 
 void mipsPipelined::writebackMSUBU()
 {
-	reg->setLO( (int32_t) innerRegs->MEMWB_getAlu() );
-	reg->setHI( (int32_t) innerRegs->MEMWB_getAlu2() );
+	reg->setLO( innerRegs->MEMWB_getAlu() );
+	reg->setHI( innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackCLZ()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 	
 }
 
 void mipsPipelined::writebackCLO()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu() );
 }
 
 
 void mipsPipelined::writebackMOVZ()
 {
-
-
 	if ( innerRegs->MEMWB_getAlu() == 1 )
-	{
-
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu2() );
-
-	}
-
+		reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu2() );
 }
 
 void mipsPipelined::writebackMOVN()
 {
-	
-
 	if ( innerRegs->MEMWB_getAlu() == 1 )
-	{
-
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRD()  , (int32_t) innerRegs->MEMWB_getAlu2() );
-
-	}
+		reg->setReg( innerRegs->MEMWB_getDestRegRD(), innerRegs->MEMWB_getAlu2() );
 }
-
-
-
-
-
 
 void mipsPipelined::writebackADDI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackADDIU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSLTI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackSLTIU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
 void mipsPipelined::writebackANDI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
-
 
 void mipsPipelined::writebackORI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
-
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
-
-
 
 void mipsPipelined::writebackXORI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
 
 void mipsPipelined::writebackLUI()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getAlu() );
-
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
-
-
-
-
 
 void mipsPipelined::writebackLB()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
 
 void mipsPipelined::writebackLH()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
 
 void mipsPipelined::writebackLWL() 
 {
-	//TODO
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
+
 void mipsPipelined::writebackLW()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
 
 void mipsPipelined::writebackLBU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
 
 void mipsPipelined::writebackLHU()
 {
-	reg->setReg( (unsigned int) innerRegs->MEMWB_getDestRegRT()  , (int32_t) innerRegs->MEMWB_getMem() );
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 
 }
+
 void mipsPipelined::writebackLWR()
 {
-	//TODO
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
-
-
-
-
 
 void mipsPipelined::writebackLL() 
 {
-
-// TODO
-
-
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getMem() );
 }
 
 void mipsPipelined::writebackSC()
 {
-//TODO
-
-
+	reg->setReg( innerRegs->MEMWB_getDestRegRT(), innerRegs->MEMWB_getAlu() );
 }
 
-
-
-
-
-
+/*
+ * Functions below this point are trivial 'cause
+ * they do nothing during WB stage
+ */
+void mipsPipelined::writebackSB(){}
+void mipsPipelined::writebackSH(){}
+void mipsPipelined::writebackSWR(){}
+void mipsPipelined::writebackSW(){}
+void mipsPipelined::writebackSWL(){}
