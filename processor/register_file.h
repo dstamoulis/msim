@@ -21,13 +21,13 @@
 #define LO_REG 32
 #define HI_REG 33
 
-class Register_File {
+class RegisterFile {
 
 public:
-	//Here goes the interface of the Register_File class
+	//Here goes the interface of the RegisterFile class
 
 	//constructors
-	Register_File(); 
+	RegisterFile(); 
 	
 	//register handlers
 	int32_t getReg( unsigned int ) const;

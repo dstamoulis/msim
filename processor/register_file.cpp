@@ -1,6 +1,6 @@
 /*
  *	register_file.cpp
- *	Implementation of the Register_File.
+ *	Implementation of the RegisterFile.
  * Defines functions for load and store of
  * a register value.
  */
@@ -11,14 +11,14 @@
 /*
  * initialize all registers in register file
  */
-Register_File::Register_File() : HI(0), LO(0), EX(0), BRK( 0x1000000 ) 
+RegisterFile::RegisterFile() : HI(0), LO(0), EX(0), BRK( 0x1000000 ) 
 {
 	memset( registers, 0, REG_NR*4 );
 	registers[29] = STACK_MAX;
 	registers[28] = GLOBAL_INIT;
 }
 
-int32_t Register_File::getReg( unsigned int reg ) const
+int32_t RegisterFile::getReg( unsigned int reg ) const
 {
 	if( reg > REG_NR )
 		throw "Not valid register";
@@ -26,7 +26,7 @@ int32_t Register_File::getReg( unsigned int reg ) const
 	return registers[reg];
 }
 
-void Register_File::setReg( unsigned int reg, int32_t val )
+void RegisterFile::setReg( unsigned int reg, int32_t val )
 {
 	if( reg > REG_NR )
 		throw "Not valid register";
@@ -40,14 +40,14 @@ void Register_File::setReg( unsigned int reg, int32_t val )
 	registers[reg] = val;
 }
 
-void Register_File::reset()
+void RegisterFile::reset()
 {
 	memset( registers, 0, REG_NR*4 );
 	registers[29] = STACK_MAX;
 	registers[28] = GLOBAL_INIT;
 }
 
-void Register_File::printRegisters()
+void RegisterFile::printRegisters()
 {
 	printf( "-------------REGISTER FILE-------------\n" );
 	

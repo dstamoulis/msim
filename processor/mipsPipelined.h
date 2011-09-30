@@ -45,7 +45,7 @@ public:
 
 	}	
 
-	mipsPipelined( simpleMemory *mem, Register_File *reg, uint32_t startAddress, uint32_t endAddress ) : simpleProcessor( mem,reg,startAddress,endAddress ) {
+	mipsPipelined( simpleMemory *mem, RegisterFile *reg, uint32_t startAddress, uint32_t endAddress ) : simpleProcessor( mem,reg,startAddress,endAddress ) {
 
 		innerRegs = new intermediateRegisters();
 		cmd = new uint32_t[STAGES];
