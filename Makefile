@@ -18,4 +18,4 @@ main.o: main.cpp
 clean:
 	cd $(PROC_DIR); make clean
 	cd $(MEM_DIR); make clean
-	rm main
+	rm main main.o
